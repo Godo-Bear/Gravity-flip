@@ -223,7 +223,8 @@ const CFG = {
   FRICTION: 14,       // crate sliding friction (m/s^2)
   FAN_K: 5,           // fan strength: accel = FAN_K * (fanSpeed - yourSpeedAlongFan)
   STEP: 1 / 120,      // physics tick
-  LOCK_STARS: 8,      // stars needed to open levels 7+
+  LOCK_STARS: 8,      // stars needed to open levels 7-10
+  LOCK_STARS_2: 18,   // stars needed to open levels 11+
   GHOST_HZ: 20        // ghost samples per second
 };
 
@@ -486,7 +487,126 @@ const LEVELS = [
     zones: [
       { t: 'noflip', b: [-10, 12, -60, 10, 40, -9] },
       { t: 'lock', g: [0, -1], b: [-10, 14, -76, 10, 34, -66] }
-    ] }
+    ] },
+
+  /* 11. TAILWIND  (a fan pushes the crate)
+     The right wall is glass, so you cannot flip toward +x like in Heavy Lifting. A fan stream
+     (speed 8, zone y 0..3, z -20..-17.8) blows +x along the foot of the back wall instead.
+     Solution (2 flips):
+       1. from the ledge (top y=4) aim the back wall (face z=-20), flip -> -z. You fall 19.2 m and land on
+          the wall at y~4.8, above the stream. The crate slides from (2,0.9,4) to (2,0.9,-19.1), into the
+          stream: fan push 5*(8-v) beats friction (14) so it slides +x to (14.1,0.9,-19.1) onto the button
+          [14.6..15.2, 0.1..1.7, -19.9..-18.3] -> both cage doors open.
+       2. aim the ground, flip -> -y (4 m drop). The fan keeps the crate pressed into the corner.
+          Walk out of the stream (+z), round to the cage door (x=8, z 4..12) and in to the beacon (11,0.8,8). */
+  { name: 'Tailwind', tip: 'No wall to flip the crate sideways this time. Let the fan stream along the back wall carry it.',
+    par: { flips: 2, time: 35 }, spawn: [-11, 4.8, 0], yaw: 0, beacon: [11, 0.8, 8], bn: [1, 1],
+    bounds: [-40, -20, -45, 40, 50, 35],
+    boxes: [
+      { t: 'ground', b: [-15, -1, -20, 15, 0, 12] },
+      { t: 'bldg', b: [-15, 0, -28, 21, 20, -20] },
+      { t: 'glass', b: [15, 0, -20, 21, 20, 12.4] },
+      { t: 'bldg', b: [-21, 0, -28, -15, 20, 12] },
+      { t: 'block', b: [-15, 0, -6, -7, 4, 4] },
+      { t: 'glass', b: [8, 5, 3.6, 15, 5.4, 12.4] },
+      { t: 'glass', b: [8, 0, 12, 15, 5, 12.4] },
+      { t: 'glass', b: [8, 0, 3.6, 15, 5, 4] }
+    ],
+    crates: [{ p: [2, 0.9, 4], h: [0.9, 0.9, 0.9] }],
+    buttons: [{ b: [14.6, 0.1, -19.9, 15.2, 1.7, -18.3], g: 1 }],
+    doors: [{ b: [7.7, 0, 4, 8, 5.4, 12], g: 1 }],
+    fans: [{ b: [-15, 0, -20, 15, 3, -17.8], d: [0, 1], v: 8 }] },
+
+  /* 12. CEILING FERRY  (riding a platform upside down)
+     Solution (2 flips):
+       1. ride ferry 1 (top y=10, z=-8.1 <-> z=-25.9) from roof A to the island (z -36..-28, top y=10).
+       2. on the island aim the plate above (underside y=22), flip -> +y (10.4 m up).
+       3. walk on the underside to z~-39.5. Ferry 2 hangs level with the plate (underside y=22) and slides
+          z=-42.1 <-> z=-61.9: step onto it upside down, ride, step off onto plate 2 (z -76..-64).
+       4. walk to z=-72, aim the roof below (y=6), flip -> -y (14.4 m), landing at the beacon (0,6.8,-72). */
+  { name: 'Ceiling Ferry', tip: 'Platforms carry you on any side. Ride the second ferry upside down.',
+    par: { flips: 2, time: 55 }, night: true, spawn: [0, 10.8, 3], yaw: 0, beacon: [0, 6.8, -72], bn: [1, 1],
+    bounds: [-45, -30, -110, 45, 70, 30],
+    boxes: [
+      { t: 'bldg', b: [-6, -30, -6, 6, 10, 6] },
+      { t: 'bldg', b: [-4, -30, -36, 4, 10, -28] },
+      { t: 'block', b: [-4, 22, -40, 4, 23, -28] },
+      { t: 'block', b: [-4, 22, -76, 4, 23, -64] },
+      { t: 'bldg', b: [-6, -30, -80, 6, 6, -64] }
+    ],
+    plats: [
+      { h: [2, 0.3, 2], a: [0, 9.7, -8.1], b: [0, 9.7, -25.9], T: 9 },
+      { h: [2, 0.3, 2], a: [0, 22.3, -42.1], b: [0, 22.3, -61.9], T: 9 }
+    ] },
+
+  /* 13. SPLIT UP  (two crates, two buttons, two doors)
+     Both crates always fall the same way, but the shelf (x -10..-2, z 2..10, top y=10) catches one.
+     Solution (3 flips):
+       1. aim the ceiling, flip -> +y. Crates rise: A (-6,0.9,-2) -> (-6,19.1,-2), B (6,0.9,2) -> (6,19.1,2).
+       2. aim the wall z=+10, flip -> +z. They slide along the ceiling: A -> (-6,19.1,9.1), B -> (6,19.1,9.1).
+       3. aim the floor, flip -> -y. A lands on the shelf at (-6,10.9,9.1) = button 1
+          [-6.8..-5.2, 10.1..11.7, 9.6..10.2]; B lands on the floor at (6,0.9,9.1) = button 2
+          [5.2..6.8, 0.1..1.7, 9.6..10.2]. Both doors of the cage open.
+       Walk through both doors (x=4 and x=5.3, z -10..-4) to the beacon at (7.5,0.8,-7).
+       (Going +z first leaves crate A stuck under the shelf.) */
+  { name: 'Split Up', tip: 'Two crates, two buttons, two laser doors. The shelf can catch one crate on its way down.',
+    par: { flips: 3, time: 50 }, spawn: [0, 0.8, -6], yaw: Math.PI, beacon: [7.5, 0.8, -7], bn: [1, 1],
+    bounds: [-12, -2, -12, 12, 22, 12], indoor: true,
+    boxes: [
+      { t: 'panel', b: [-11, -1, -11, 11, 0, 11] },
+      { t: 'panel', b: [-11, 20, -11, 11, 21, 11] },
+      { t: 'panel', b: [-11, 0, -11, -10, 20, 11] },
+      { t: 'panel', b: [10, 0, -11, 11, 20, 11] },
+      { t: 'panel', b: [-10, 0, -11, 10, 20, -10] },
+      { t: 'panel', b: [-10, 0, 10, 10, 20, 11] },
+      { t: 'block', b: [-10, 9, 2, -2, 10, 10] },
+      { t: 'glass', b: [4, 4, -10, 10, 4.3, -3.7] },
+      { t: 'glass', b: [4, 0, -4, 10, 4, -3.7] }
+    ],
+    crates: [{ p: [-6, 0.9, -2], h: [0.9, 0.9, 0.9] }, { p: [6, 0.9, 2], h: [0.9, 0.9, 0.9] }],
+    buttons: [{ b: [-6.8, 10.1, 9.6, -5.2, 11.7, 10.2], g: 1 }, { b: [5.2, 0.1, 9.6, 6.8, 1.7, 10.2], g: 2 }],
+    doors: [{ b: [3.7, 0, -10, 4, 4.3, -3.7], g: 1 }, { b: [5.3, 0, -10, 5.6, 4, -4], g: 2 }] },
+
+  /* 14. LEAP OF FAITH  (flipping in mid-air)
+     The beacon is on the wall of the tower you are standing on (face z=-6), which you cannot see or aim
+     at from the roof. Solution (1 flip): step backwards off the roof edge behind you (z < -6) so you
+     face the tower, and while falling past the wall aim it and flip -> +z. Only the speed INTO a surface
+     hurts, so the landing is soft; you skid down the wall to a stop. The wall runs from y=30 down to
+     y=-90, giving about 3 seconds. Walk to the beacon at (0,-10,-6.8). */
+  { name: 'Leap of Faith', tip: 'The beacon is on the wall under your feet. Step backwards off the edge behind you, then flip onto the wall as you fall past it.',
+    par: { flips: 1, time: 20 }, spawn: [0, 30.8, -2], yaw: Math.PI, beacon: [0, -10, -6.8], bn: [2, -1],
+    bounds: [-40, -85, -45, 40, 60, 40],
+    boxes: [
+      { t: 'bldg', b: [-6, -90, -6, 6, 30, 6] }
+    ] },
+
+  /* 15. NIGHT SHIFT  (second finale: truck shield, electric wall, lift fan, ceiling ferry, mid-air flip)
+     Solution (5 flips):
+       1. stand right behind the truck (z about -2, x about 0), aim the electric wall (face z=-28) above the
+          truck, flip -> -z. Truck falls 19 m and covers the wall; you land on its back at z=-21.2.
+       2. aim the far platform, flip -> -y.
+       3. walk round the truck into the lift fan (x -5.5..-1.5, z -27..-23). Do not steer into the wall
+          (electric up to y=18) until you are above it. Float to the top (y~22), steer -z onto the roof (y=18).
+       4. at z about -32 aim the plate above (underside y=30), flip -> +y (10.4 m up).
+       5. walk upside down to z~-51.5, ride the ceiling ferry (z=-54.1 <-> z=-73.9) to plate 2 (z -90..-76).
+       6. at z about -84 aim the tower roof below (y=14), flip -> -y (14.4 m).
+       7. step off the far edge (z < -92) and, falling past the wall (face z=-92), aim it and flip -> +z.
+          Walk to the beacon at (0,-6,-92.8). */
+  { name: 'Night Shift', tip: 'One last run: truck shield, updraft, ceiling ferry, and a leap of faith at the end.',
+    par: { flips: 5, time: 110 }, night: true, spawn: [0, 0.8, 6], yaw: 0, beacon: [0, -6, -92.8], bn: [2, -1],
+    bounds: [-45, -85, -135, 45, 70, 35],
+    boxes: [
+      { t: 'ground', b: [-6, -1, -10, 6, 0, 12] },
+      { t: 'ground', b: [-6, -1, -28, 6, 0, -18] },
+      { t: 'bldg', b: [-8, -30, -38, 8, 18, -28] },
+      { t: 'block', b: [-4, 30, -52, 4, 31, -30] },
+      { t: 'block', b: [-4, 30, -90, 4, 31, -76] },
+      { t: 'bldg', b: [-6, -90, -92, 6, 14, -78] }
+    ],
+    crates: [{ p: [0, 1.3, -6], h: [1.3, 1.3, 3], truck: true }],
+    elec: [[-8, 0, -28, 8, 18, -27.6]],
+    fans: [{ b: [-5.5, 0, -27, -1.5, 22, -23], d: [1, 1], v: 12 }],
+    plats: [{ h: [2, 0.3, 2], a: [0, 30.3, -54.1], b: [0, 30.3, -73.9], T: 9 }] }
 ];
 
 // =====================================================================
@@ -1386,7 +1506,8 @@ try {
 function persist() { try { localStorage.setItem('gfc_save', JSON.stringify({ stars: save.stars, best: save.best, opts: opts })); } catch (e) { /* ignore */ } }
 function totalStars() { return save.stars.reduce((a, b) => a + (b || 0), 0); }
 let dbgOn = false;
-function unlocked(i) { return i < 6 || dbgOn || totalStars() >= CFG.LOCK_STARS; }   // "Level 7+" star lock
+function needStars(i) { return i < 6 ? 0 : i < 10 ? CFG.LOCK_STARS : CFG.LOCK_STARS_2; }
+function unlocked(i) { return dbgOn || totalStars() >= needStars(i); }               // star locks: levels 7+ and 11+
 
 // =====================================================================
 //  SOUND (Web Audio, all generated)
@@ -1454,14 +1575,14 @@ function buildGrid() {
   const g = $('grid'); g.innerHTML = '';
   const tot = totalStars();
   $('starTotal').textContent = '★ ' + tot + ' / ' + LEVELS.length * 3 +
-    (tot >= CFG.LOCK_STARS ? '' : '   -   levels 7+ unlock at ' + CFG.LOCK_STARS + ' stars');
+    (tot < CFG.LOCK_STARS ? '   -   levels 7+ unlock at ' + CFG.LOCK_STARS + ' stars' : tot < CFG.LOCK_STARS_2 ? '   -   levels 11+ unlock at ' + CFG.LOCK_STARS_2 + ' stars' : '');
   LEVELS.forEach((L, i) => {
     const c = document.createElement('div'), ok = unlocked(i), st = save.stars[i] || 0;
     c.className = 'card' + (ok ? '' : ' locked');
     c.innerHTML = '<div class="n">' + (ok ? i + 1 : '🔒') + '</div><div class="t"></div><div class="s"></div><div class="b"></div>';
     c.children[1].textContent = L.name;
     c.children[2].textContent = ok ? '★'.repeat(st) + '☆'.repeat(3 - st) : '';
-    c.children[3].textContent = ok ? (save.best[i] != null ? 'Best ' + save.best[i].toFixed(2) + ' s' : 'Not cleared') : 'Need ' + CFG.LOCK_STARS + ' stars';
+    c.children[3].textContent = ok ? (save.best[i] != null ? 'Best ' + save.best[i].toFixed(2) + ' s' : 'Not cleared') : 'Need ' + needStars(i) + ' stars';
     if (ok) c.onclick = () => startLevel(i); else c.onclick = () => sfx.deny();
     g.appendChild(c);
   });
