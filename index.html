@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Gravity Flip City</title>
 <style>
   :root { --ink:#eaf6ff; --dim:#9db4c8; --accent:#ffb347; --cyan:#5fe3ff; --bad:#ff5468; --good:#5dfc9a; --panel:rgba(10,18,32,.82); }
   * { box-sizing:border-box; }
   html,body { margin:0; height:100%; overflow:hidden; background:#0b1220; color:var(--ink);
     font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif; user-select:none; -webkit-user-select:none; }
-  canvas#game { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  html { touch-action:manipulation; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  canvas#game { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
   .screen { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column;
     background:radial-gradient(ellipse at 50% 30%, rgba(20,40,80,.72), rgba(4,8,18,.93)); z-index:20; padding:16px; overflow:auto; }
   .screen.on { display:flex; }
@@ -65,6 +66,40 @@
   .stars { font-size:46px; letter-spacing:8px; color:#ffd24a; margin:4px 0 10px; text-align:center; }
   .stat { font-size:17px; margin:3px 0; text-align:center; } .stat span { color:var(--accent); font-weight:700; }
   .opt { color:var(--dim); font-size:14px; margin-top:10px; text-align:center; }
+  /* ---------- touch controls (shown after the first touch) ---------- */
+  #touchUI { display:none; position:absolute; inset:0; pointer-events:none; }
+  body.touch #touchUI { display:block; }
+  #stick { position:absolute; width:120px; height:120px; margin:-60px 0 0 -60px; border-radius:50%; border:2px solid rgba(255,255,255,.4);
+    background:rgba(255,255,255,.08); opacity:.55; }
+  #stick.on { opacity:1; }
+  #knob { position:absolute; left:50%; top:50%; width:54px; height:54px; margin:-27px 0 0 -27px; border-radius:50%; background:rgba(255,255,255,.45); }
+  .tb { position:absolute; pointer-events:auto; touch-action:none; font:inherit; font-weight:800; letter-spacing:1px; color:#fff; border-radius:50%;
+    border:2px solid rgba(255,255,255,.55); background:rgba(10,18,32,.5); padding:0; }
+  .tb:active, .tb.dn { background:rgba(95,227,255,.45); }
+  #tFlip { right:calc(20px + env(safe-area-inset-right)); bottom:62px; width:96px; height:96px; font-size:18px; border-color:var(--accent); background:rgba(255,179,71,.3); }
+  #tJump { right:calc(124px + env(safe-area-inset-right)); bottom:22px; width:76px; height:76px; font-size:13px; }
+  #tUndo { right:calc(130px + env(safe-area-inset-right)); bottom:110px; width:62px; height:62px; font-size:11px; }
+  #tTop { position:absolute; left:50%; top:8px; transform:translateX(-50%); display:flex; gap:10px; }
+  #tTop .tb { position:static; width:40px; height:40px; font-size:16px; border-radius:10px; }
+  #rotate { display:none; position:fixed; left:50%; bottom:10px; transform:translateX(-50%); z-index:30; background:var(--panel); border:1px solid var(--accent);
+    border-radius:20px; padding:6px 14px; font-size:13px; white-space:nowrap; pointer-events:none; }
+  @media (orientation:portrait) { body.touch #rotate { display:block; } }
+  body.touch #tip { bottom:auto; top:54px; font-size:12px; padding:5px 10px; max-width:52vw; }
+  body.touch #speedWrap { width:28vw; bottom:10px; }
+  body.touch #hudL { font-size:12px; line-height:1.4; padding:6px 9px; min-width:150px; left:calc(10px + env(safe-area-inset-left)); top:8px; }
+  body.touch #lvName { font-size:13px; }
+  body.touch #zoneTxt { top:34%; font-size:13px; }
+  body.touch #toast { top:42%; font-size:16px; }
+  body.touch .kb { display:none; }
+  .tc { display:none; } body.touch .tc { display:table-row; }
+  @media (max-height:520px) {
+    .screen { justify-content:flex-start; padding:10px; }
+    h1 { font-size:34px; } h2 { font-size:22px; margin-bottom:6px; } .sub { margin-bottom:10px; }
+    .btn { font-size:15px; padding:7px 18px; margin:4px; min-width:170px; }
+    .card { padding:5px 6px 7px; } .card .n { font-size:19px; } .card .t { min-height:0; font-size:12px; } .card .s { font-size:14px; }
+    #grid { gap:7px; margin:4px 0 8px; } .stars { font-size:32px; margin:0 0 4px; } .stat { font-size:14px; margin:1px 0; }
+    .box { padding:10px 14px; } table.keys { font-size:12px; } table.keys td { padding:2px 6px; }
+  }
 </style>
 </head>
 <body>
@@ -84,7 +119,15 @@
   <div id="toast"></div>
   <div id="tip"></div>
   <div id="speedWrap"><div id="speedLbl">FALL SPEED</div><div id="speedBar"><div id="speedFill"></div></div></div>
+  <div id="touchUI">
+    <div id="stick"><div id="knob"></div></div>
+    <button class="tb" id="tFlip">FLIP</button>
+    <button class="tb" id="tJump">JUMP</button>
+    <button class="tb" id="tUndo">UNDO</button>
+    <div id="tTop"><button class="tb" id="tPause">II</button><button class="tb" id="tRestart">&#8635;</button><button class="tb" id="tTip">?</button></div>
+  </div>
 </div>
+<div id="rotate">Turn your phone sideways for a wider view</div>
 <div id="dead"></div>
 <div id="dbg"></div>
 
@@ -112,17 +155,22 @@
   <div class="box">
     <h2>Controls</h2>
     <table class="keys">
-      <tr><td>Mouse</td><td>Look around (click the game to capture the mouse, or click-and-drag)</td></tr>
-      <tr><td>W A S D / Arrows</td><td>Walk</td></tr>
-      <tr><td>Space</td><td>Jump</td></tr>
-      <tr><td>E / Left click</td><td>Flip gravity onto the surface you're aiming at</td></tr>
-      <tr><td>Q</td><td>Undo the last flip (counts as a flip)</td></tr>
-      <tr><td>R</td><td>Restart level</td></tr>
-      <tr><td>H</td><td>Show / hide tips</td></tr>
-      <tr><td>N</td><td>Switch sky: auto / day / night</td></tr>
-      <tr><td>M</td><td>Mute sounds</td></tr>
-      <tr><td>Esc / P</td><td>Pause</td></tr>
-      <tr><td>` (backtick)</td><td>Debug / level-design overlay ([ and ] change level)</td></tr>
+      <tr class="tc"><td>Left thumb</td><td>Walk - touch anywhere on the left side and drag</td></tr>
+      <tr class="tc"><td>Right thumb</td><td>Look around - drag anywhere on the right side</td></tr>
+      <tr class="tc"><td>FLIP</td><td>Flip gravity onto the surface under the crosshair</td></tr>
+      <tr class="tc"><td>JUMP / UNDO</td><td>Jump / undo the last flip (counts as a flip)</td></tr>
+      <tr class="tc"><td>II &nbsp; &#8635; &nbsp; ?</td><td>Pause / restart level / show or hide tips</td></tr>
+      <tr class="kb"><td>Mouse</td><td>Look around (click the game to capture the mouse, or click-and-drag)</td></tr>
+      <tr class="kb"><td>W A S D / Arrows</td><td>Walk</td></tr>
+      <tr class="kb"><td>Space</td><td>Jump</td></tr>
+      <tr class="kb"><td>E / Left click</td><td>Flip gravity onto the surface you're aiming at</td></tr>
+      <tr class="kb"><td>Q</td><td>Undo the last flip (counts as a flip)</td></tr>
+      <tr class="kb"><td>R</td><td>Restart level</td></tr>
+      <tr class="kb"><td>H</td><td>Show / hide tips</td></tr>
+      <tr class="kb"><td>N</td><td>Switch sky: auto / day / night</td></tr>
+      <tr class="kb"><td>M</td><td>Mute sounds</td></tr>
+      <tr class="kb"><td>Esc / P</td><td>Pause</td></tr>
+      <tr class="kb"><td>` (backtick)</td><td>Debug / level-design overlay ([ and ] change level)</td></tr>
     </table>
     <p class="opt">The dotted line shows where you'll land: <span style="color:var(--good)">green</span> is safe,
       <span style="color:#ffd24a">yellow</span> is a hard landing, <span style="color:var(--bad)">red</span> is fatal.</p>
@@ -455,7 +503,14 @@ const S = {
   orientTarget: new THREE.Quaternion(), orientSmooth: new THREE.Quaternion(), orientFrom: new THREE.Quaternion(),
   zone: null, aim: null, rec: [], recT: 0, ghost: null, winT: 0, deadT: 0, stepDist: 0, walkPhase: 0, night: false
 };
-const K = { fwd: false, back: false, left: false, right: false, jump: false };
+const K = { fwd: false, back: false, left: false, right: false, jump: false, ax: 0, az: 0 };   // ax/az = touch stick
+const MV = [0, 0];
+function moveInput() {
+  let ix = (K.right ? 1 : 0) - (K.left ? 1 : 0) + (K.ax || 0), iz = (K.fwd ? 1 : 0) - (K.back ? 1 : 0) + (K.az || 0);
+  const l = Math.hypot(ix, iz);
+  if (l > 1) { ix /= l; iz /= l; }
+  MV[0] = ix; MV[1] = iz;
+}
 const YAX = new THREE.Vector3(0, 1, 0), XAX = new THREE.Vector3(1, 0, 0);
 const TV1 = new THREE.Vector3(), TV2 = new THREE.Vector3(), TV3 = new THREE.Vector3();
 const TQ1 = new THREE.Quaternion(), TQ2 = new THREE.Quaternion(), TM = new THREE.Matrix4();
@@ -634,9 +689,10 @@ function stepPlayer(dt) {
   }
   const g = S.grav, a = g.a;
   // --- walking (relative to the camera, in the plane of the current floor) ---
-  const ix = (K.right ? 1 : 0) - (K.left ? 1 : 0), iz = (K.fwd ? 1 : 0) - (K.back ? 1 : 0);
+  moveInput();
+  const ix = MV[0], iz = MV[1];
   TV1.set(ix, 0, -iz);
-  if (ix || iz) TV1.normalize().applyAxisAngle(YAX, S.yaw).applyQuaternion(S.orientTarget);
+  if (ix || iz) TV1.applyAxisAngle(YAX, S.yaw).applyQuaternion(S.orientTarget);
   const w = [TV1.x, TV1.y, TV1.z];
   const acc = (P.grounded && !P.inFan ? CFG.ACC_GROUND : CFG.ACC_AIR) * dt;
   let hs = 0;
@@ -1158,7 +1214,8 @@ function updateView(dt) {
   if (fx.stars) fx.stars.position.copy(camera.position);
 
   // player model
-  const ix = (K.right ? 1 : 0) - (K.left ? 1 : 0), iz = (K.fwd ? 1 : 0) - (K.back ? 1 : 0);
+  moveInput();
+  const ix = MV[0], iz = MV[1];
   const moving = playing && (ix || iz);
   let ty = S.yaw + (moving ? Math.atan2(-ix, iz) : 0), dy = ty - S.modelYaw;
   dy = Math.atan2(Math.sin(dy), Math.cos(dy)); S.modelYaw += dy * Math.min(1, dt * 12);
@@ -1239,16 +1296,21 @@ function render() {
   renderer.render(scene, camera);
   if (S.mode === 'play' || S.mode === 'win' || S.mode === 'dead') {
     renderer.clearDepth();
-    renderer.setViewport(w - 130, h - 128, 116, 116);
+    renderer.setViewport(w - GW - 14, h - GW - 12, GW, GW);
     renderer.render(gScene, gCam);
   }
 }
+let GW = 116;                              // size of the gravity-arrow widget (smaller on short phone screens)
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
+  GW = h < 420 ? 72 : 116;
+  const gb = document.getElementById('gravBox'), gl = document.getElementById('gravLbl');
+  gb.style.width = gl.style.width = GW + 'px'; gb.style.height = (GW + 20) + 'px';
+  gl.style.top = (GW + 12) + 'px'; gl.style.fontSize = GW < 100 ? '9px' : '11px';
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
 }
-window.addEventListener('resize', resize);
+window.addEventListener('resize', () => { resize(); if (touchOn && TS.stick === null) stickIdle(); });
 
 // =====================================================================
 //  GHOST (speedrun mode): record position + orientation, replay the best run
@@ -1404,15 +1466,21 @@ function buildGrid() {
     g.appendChild(c);
   });
 }
+function setTip() {
+  let t = S.L.tip;
+  if (touchOn) t = t.replace('press E', 'tap FLIP').replace('(Space)', '(JUMP button)');
+  $('tip').textContent = t; $('tip').style.display = opts.tips ? '' : 'none';
+}
 function startLevel(i) {
   if (!unlocked(i)) return;
   loadLevel(i);
   $('lvName').textContent = (i + 1) + '. ' + S.L.name;
-  $('tip').textContent = S.L.tip; $('tip').style.display = opts.tips ? '' : 'none';
+  setTip();
   showScreen(null);
-  grabMouse();
+  if (touchOn) goFullscreen(); else grabMouse();
 }
 let pausedAt = 0;
+function toggleTips() { opts.tips = !opts.tips; $('tip').style.display = opts.tips ? '' : 'none'; persist(); }
 function pauseGame() { if (S.mode === 'play') { S.mode = 'pause'; pausedAt = performance.now(); showScreen('pause'); } }
 function resumeGame() { if (S.mode === 'pause') { S.mode = 'play'; showScreen(null); grabMouse(); } }
 function restartLevel() { $('dead').classList.remove('on'); resetLevel(); showScreen(null); }
@@ -1523,7 +1591,7 @@ window.addEventListener('keydown', e => {
     case 'KeyE': tryFlip(); break;
     case 'KeyQ': undoFlip(); break;
     case 'KeyR': if (inGame) restartLevel(); break;
-    case 'KeyH': opts.tips = !opts.tips; $('tip').style.display = opts.tips ? '' : 'none'; persist(); break;
+    case 'KeyH': toggleTips(); break;
     case 'KeyM': opts.mute = !opts.mute; persist(); optLabels(); if (inGame) toast('Sound ' + (opts.mute ? 'off' : 'on')); break;
     case 'KeyN': cycleSky(); if (inGame) toast('Sky: ' + opts.sky); break;
     case 'KeyP': case 'Escape': if (S.mode === 'play') pauseGame(); else if (S.mode === 'pause' && performance.now() - pausedAt > 300) resumeGame(); break;
@@ -1536,7 +1604,89 @@ window.addEventListener('keydown', e => {
   }
 });
 window.addEventListener('keyup', e => { if (KEYMAP[e.code]) K[KEYMAP[e.code]] = false; });
-window.addEventListener('blur', () => { for (const k in K) K[k] = false; if (S.mode === 'play' && wasLocked) pauseGame(); });
+window.addEventListener('blur', () => { for (const k in K) K[k] = k === 'ax' || k === 'az' ? 0 : false; if (S.mode === 'play' && wasLocked) pauseGame(); });
+
+// =====================================================================
+//  TOUCH CONTROLS: left thumb = walk (floating stick), right thumb = look, buttons = flip / jump / undo
+// =====================================================================
+let touchOn = false;
+const TS = { stick: null, look: null, sx: 0, sy: 0, lx: 0, ly: 0, R: 55 };
+function stickIdle() {
+  const st = $('stick');
+  st.style.left = '95px'; st.style.top = (window.innerHeight - 95) + 'px';
+  st.classList.remove('on'); $('knob').style.transform = '';
+}
+function enableTouch() {
+  if (touchOn) return;
+  touchOn = true; document.body.classList.add('touch'); stickIdle();
+  if (S.L) setTip();
+}
+function goFullscreen() {
+  // phones: fill the screen and prefer landscape where the browser allows it
+  try {
+    const el = document.documentElement;
+    if (!document.fullscreenElement && el.requestFullscreen) {
+      const p = el.requestFullscreen();
+      if (p && p.then) p.then(() => { try { const q = screen.orientation.lock('landscape'); if (q && q.catch) q.catch(() => {}); } catch (e) { /* ignore */ } }).catch(() => {});
+    }
+  } catch (e) { /* not supported: just play in the page */ }
+}
+canvas.addEventListener('touchstart', e => {
+  enableTouch();
+  if (S.mode !== 'play') return;
+  e.preventDefault();                                          // no scrolling, no fake mouse clicks
+  for (const t of e.changedTouches) {
+    if (t.clientX < window.innerWidth * 0.45 && TS.stick === null) {
+      TS.stick = t.identifier; TS.sx = t.clientX; TS.sy = t.clientY;
+      const st = $('stick'); st.style.left = t.clientX + 'px'; st.style.top = t.clientY + 'px'; st.classList.add('on');
+    } else if (TS.look === null) { TS.look = t.identifier; TS.lx = t.clientX; TS.ly = t.clientY; }
+  }
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.identifier === TS.stick) {
+      let dx = t.clientX - TS.sx, dy = t.clientY - TS.sy;
+      const l = Math.hypot(dx, dy);
+      if (l > TS.R) { dx *= TS.R / l; dy *= TS.R / l; }
+      $('knob').style.transform = 'translate(' + dx.toFixed(0) + 'px,' + dy.toFixed(0) + 'px)';
+      const dead = l < TS.R * 0.18;                             // small dead zone in the middle
+      K.ax = dead ? 0 : dx / TS.R; K.az = dead ? 0 : -dy / TS.R;
+    } else if (t.identifier === TS.look) {
+      const dx = t.clientX - TS.lx, dy = t.clientY - TS.ly;
+      TS.lx = t.clientX; TS.ly = t.clientY;
+      if (S.mode === 'play') {
+        S.yaw -= dx * 0.006;
+        S.pitch = Math.max(-1.45, Math.min(1.45, S.pitch - dy * 0.006));
+      }
+    }
+  }
+}, { passive: false });
+function touchEnd(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === TS.stick) { TS.stick = null; K.ax = K.az = 0; stickIdle(); }
+    else if (t.identifier === TS.look) TS.look = null;
+  }
+}
+canvas.addEventListener('touchend', touchEnd);
+canvas.addEventListener('touchcancel', touchEnd);
+function touchButton(id, down, up) {
+  const b = $(id);
+  b.addEventListener('touchstart', e => { e.preventDefault(); enableTouch(); b.classList.add('dn'); down(); }, { passive: false });
+  const end = e => { if (e.cancelable) e.preventDefault(); b.classList.remove('dn'); if (up) up(); };
+  b.addEventListener('touchend', end); b.addEventListener('touchcancel', end);
+}
+touchButton('tFlip', tryFlip);
+touchButton('tUndo', undoFlip);
+touchButton('tJump', () => { K.jump = true; }, () => { K.jump = false; });
+touchButton('tPause', pauseGame);
+touchButton('tRestart', () => { if (S.mode === 'play' || S.mode === 'dead') restartLevel(); });
+touchButton('tTip', toggleTips);
+window.addEventListener('touchstart', enableTouch, { passive: true, capture: true });
+window.addEventListener('touchend', () => { audio(); }, { passive: true });      // phones only start audio from a tap
+window.addEventListener('click', () => { audio(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) enableTouch();
 
 // =====================================================================
 //  MAIN LOOP
