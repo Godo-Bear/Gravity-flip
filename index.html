@@ -25,8 +25,19 @@
   .btn.alt { border-color:#6c86a3; background:rgba(255,255,255,.05); }
   .btn.small { min-width:0; font-size:14px; padding:7px 14px; }
   .row { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; }
-  #grid { display:grid; grid-template-columns:repeat(5,minmax(120px,170px)); gap:12px; margin:8px 0 16px; }
-  @media (max-width:760px){ #grid { grid-template-columns:repeat(2,minmax(120px,1fr)); } }
+  #grid { margin:4px 0 14px; }
+  .wh { font-size:17px; font-weight:800; color:var(--cyan); margin:12px 2px 6px; letter-spacing:1px; }
+  .wh.locked { color:var(--dim); }
+  .wg { display:grid; grid-template-columns:repeat(6,minmax(110px,150px)); gap:10px; }
+  @media (max-width:980px){ .wg { grid-template-columns:repeat(3,minmax(100px,1fr)); } }
+  .sw { width:118px; height:104px; margin:6px; border-radius:14px; border:3px solid #35506e; cursor:pointer; color:#fff; font:inherit; font-weight:800;
+    text-shadow:0 1px 4px #000; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; padding-bottom:8px; }
+  .sw small { font-weight:600; font-size:11px; }
+  .sw.sel { border-color:#fff; box-shadow:0 0 18px rgba(255,255,255,.6); }
+  .sw.locked { opacity:.4; cursor:not-allowed; }
+  #focus { position:absolute; inset:0; opacity:0; transition:opacity .15s; background:radial-gradient(ellipse at center, rgba(60,170,255,0) 40%, rgba(60,170,255,.34) 100%); }
+  #focus.on { opacity:1; }
+  #focus::after { content:"SLOW-MO  -  let go to flip"; position:absolute; left:50%; top:62%; transform:translateX(-50%); font-size:13px; font-weight:800; letter-spacing:2px; color:#bfe6ff; text-shadow:0 1px 4px #000; white-space:nowrap; }
   .card { background:var(--panel); border:2px solid #35506e; border-radius:12px; padding:10px 10px 12px; cursor:pointer; text-align:center; }
   .card:hover { border-color:var(--cyan); }
   .card.locked { opacity:.45; cursor:not-allowed; }
@@ -101,7 +112,7 @@
     h1 { font-size:34px; } h2 { font-size:22px; margin-bottom:6px; } .sub { margin-bottom:10px; }
     .btn { font-size:15px; padding:7px 18px; margin:4px; min-width:170px; }
     .card { padding:5px 6px 7px; } .card .n { font-size:19px; } .card .t { min-height:0; font-size:12px; } .card .s { font-size:14px; }
-    #grid { gap:7px; margin:4px 0 8px; } .stars { font-size:32px; margin:0 0 4px; } .stat { font-size:14px; margin:1px 0; }
+    .wg { gap:7px; } .wh { margin:6px 2px 3px; font-size:14px; } .sw { width:92px; height:78px; margin:4px; } .stars { font-size:32px; margin:0 0 4px; } .stat { font-size:14px; margin:1px 0; }
     .box { padding:10px 14px; } table.keys { font-size:12px; } table.keys td { padding:2px 6px; }
   }
 </style>
@@ -110,13 +121,14 @@
 <canvas id="game"></canvas>
 
 <div id="hud">
-  <div id="vig"></div><div id="rush"></div>
+  <div id="vig"></div><div id="rush"></div><div id="focus"></div>
   <div id="hudL">
     <div id="lvName"></div>
     <div>Time <b id="hTime">0.0</b> <span id="hSplit"></span></div>
     <div>Flips <b id="hFlips">0</b></div>
     <div>Deaths <b id="hDeaths">0</b></div>
     <div>Beacon <b id="hDist">0</b> m</div>
+    <div>Gem <b id="hGem"></b></div>
   </div>
   <div id="gravBox"></div><div id="gravLbl">GRAVITY</div>
   <div id="cross"></div><div id="aimTxt"></div>
@@ -141,12 +153,14 @@
   <p class="sub">Aim at any surface. Press E. That's your new floor.</p>
   <button class="btn" id="bPlay">Play</button>
   <button class="btn alt" id="bLevels">Level Select</button>
+  <button class="btn alt" id="bSuits">Suits</button>
   <button class="btn alt" id="bControls">Controls</button>
   <div class="row" style="margin-top:14px">
     <button class="btn alt small" id="bSky"></button>
     <button class="btn alt small" id="bGhost"></button>
     <button class="btn alt small" id="bMute"></button>
     <button class="btn alt small" id="bGfx"></button>
+    <button class="btn alt small" id="bSlow"></button>
   </div>
 </div>
 
@@ -155,6 +169,13 @@
   <div class="sub" id="starTotal" style="margin-bottom:10px"></div>
   <div id="grid"></div>
   <button class="btn alt" data-go="title">Back</button>
+</div>
+
+<div id="suits" class="screen">
+  <h2>Suits</h2>
+  <div class="sub" id="suitInfo" style="margin-bottom:10px"></div>
+  <div id="suitGrid" class="row"></div>
+  <button class="btn alt" data-go="title" style="margin-top:12px">Back</button>
 </div>
 
 <div id="controls" class="screen">
@@ -170,6 +191,8 @@
       <tr class="kb"><td>W A S D / Arrows</td><td>Walk</td></tr>
       <tr class="kb"><td>Space</td><td>Jump</td></tr>
       <tr class="kb"><td>E / Left click</td><td>Flip gravity onto the surface you're aiming at</td></tr>
+      <tr class="kb"><td>Hold E in mid-air</td><td>Slow motion while you aim - let go to flip</td></tr>
+      <tr class="tc"><td>Hold FLIP in mid-air</td><td>Slow motion while you aim - let go to flip</td></tr>
       <tr class="kb"><td>Q</td><td>Undo the last flip (counts as a flip)</td></tr>
       <tr class="kb"><td>R</td><td>Restart level</td></tr>
       <tr class="kb"><td>H</td><td>Show / hide tips</td></tr>
@@ -229,8 +252,6 @@ const CFG = {
   FRICTION: 14,       // crate sliding friction (m/s^2)
   FAN_K: 5,           // fan strength: accel = FAN_K * (fanSpeed - yourSpeedAlongFan)
   STEP: 1 / 120,      // physics tick
-  LOCK_STARS: 8,      // stars needed to open levels 7-10
-  LOCK_STARS_2: 18,   // stars needed to open levels 11+
   GHOST_HZ: 20        // ghost samples per second
 };
 
@@ -243,6 +264,10 @@ const CFG = {
    doors   : {b:[box], g:group}                    (laser door, open while its group's button is pressed)
    elec    : [box]                                 (touch = ZAP)
    fans    : {b:[box] zone, d:[axis,sign], v:speed}
+   drones  : {a:[x,y,z], b:[x,y,z], T:seconds there-and-back}   (patrol drone, touch = ZAP; a == b hovers in place)
+   cps     : {p:[x,y,z] respawn point, g:[axis,sign] gravity you must be standing in to trigger it}
+   gem     : [x,y,z] hidden gem (walk within 1.4 m)
+   theme   : 'foundry' | 'orbit' (otherwise day/night city)
    plats   : {h:[half-size], a:[x,y,z], b:[x,y,z], T:seconds for a full there-and-back}
    zones   : {t:'noflip', b:[box]}  or  {t:'lock', g:[axis,sign], b:[box]}
    spawn/beacon are player-centre positions; bn = [axis,sign] normal of the beacon's surface
@@ -253,7 +278,7 @@ const LEVELS = [
   /* 1. UP THE WALL
      Solution (1 flip): from spawn (0,0.8,2) aim at the tower face z=-12 and flip -> gravity -z.
      Fall 13.2 m (safe), land at (0,0.8,-11.2). Walk "up" the wall (+y) to the beacon at y=26. */
-  { name: 'Up the Wall', tip: 'Aim at the tall tower in front of you and press E. Then walk up it to the beacon.',
+  { name: 'Up the Wall', gem: [17, 15, -9.2], tip: 'Aim at the tall tower in front of you and press E. Then walk up it to the beacon.',
     par: { flips: 1, time: 20 }, spawn: [0, 0.8, 2], yaw: 0, beacon: [0, 26, -11.2], bn: [2, 1],
     bounds: [-60, -20, -60, 60, 70, 50],
     boxes: [
@@ -267,7 +292,7 @@ const LEVELS = [
      Solution (2 flips): on roof A (y=20) aim up at the underside of the sky-bridge (y=34), flip -> +y,
      fall up 12.4 m. Walk along the underside to z=-50. Aim at roof B (y=20), flip -> -y, fall 12.4 m,
      land next to the beacon at (0,20.8,-50). Flipping straight at building B's wall is a 37 m fall = fatal. */
-  { name: 'Upside Down', tip: 'Look up! The underside of the sky-bridge is a floor too. Cross the gap on it.',
+  { name: 'Upside Down', gem: [2.4, 33.2, -53.3], tip: 'Look up! The underside of the sky-bridge is a floor too. Cross the gap on it.',
     par: { flips: 2, time: 30 }, spawn: [0, 20.8, 2], yaw: 0, beacon: [0, 20.8, -50], bn: [1, 1],
     bounds: [-50, -25, -90, 50, 75, 40],
     boxes: [
@@ -283,7 +308,7 @@ const LEVELS = [
           flip -> +x, fall 14.4 m.
        3. walk to z=-58 (L2 spans z -104..-54), aim L2 (face x=-8), flip -> -x, fall 14.4 m.
        4. walk to z=-94, aim the far street (top y=0), flip -> -y, walk to the beacon at (0,0.8,-94). */
-  { name: 'Canyon Run', tip: 'The street is gone. Hop wall to wall - but you only get 4 flips.',
+  { name: 'Canyon Run', gem: [7.2, 18, -40], tip: 'The street is gone. Hop wall to wall - but you only get 4 flips.',
     par: { flips: 4, time: 45 }, limit: 4, night: true, spawn: [0, 0.8, 4], yaw: 0, beacon: [0, 0.8, -94], bn: [1, 1],
     bounds: [-40, -30, -125, 40, 60, 30],
     boxes: [
@@ -302,7 +327,7 @@ const LEVELS = [
           button [14.6..15.2, 0.1..1.7, -19.9..-18.3] -> laser gate opens.
        3. aim the ground, flip -> -y. The crate is already on the ground so it stays on the button.
           Walk through the open gate (x=-9) to the beacon at (-12,0.8,0). */
-  { name: 'Heavy Lifting', tip: 'Gravity moves the crate too. Slide it to the back wall, then into the corner button.',
+  { name: 'Heavy Lifting', gem: [-12, 6.2, 0], tip: 'Gravity moves the crate too. Slide it to the back wall, then into the corner button.',
     par: { flips: 3, time: 40 }, spawn: [-5, 0.8, -2], yaw: 0, beacon: [-12, 0.8, 0], bn: [1, 1],
     bounds: [-40, -20, -45, 40, 50, 35],
     boxes: [
@@ -325,7 +350,7 @@ const LEVELS = [
           electric wall (truck now z -28..-22); you fall with it and land on its back at z=-21.2.
        2. aim the far platform (top y=0, z -28..-18) beside you, flip -> -y. Walk to the beacon
           at (-3.5,0.8,-20) without touching the wall. */
-  { name: 'Truck Bridge', tip: 'That wall is electric. Stand right behind the truck and let it land first.',
+  { name: 'Truck Bridge', gem: [0, 2.6, -14], tip: 'That wall is electric. Stand right behind the truck and let it land first.',
     par: { flips: 2, time: 30 }, spawn: [0, 0.8, 6], yaw: 0, beacon: [-3.5, 0.8, -20], bn: [1, 1],
     bounds: [-40, -30, -60, 40, 50, 30],
     boxes: [
@@ -342,7 +367,7 @@ const LEVELS = [
        2. aim the ceiling (y=20), flip -> +y. Crate rises to (-6,19.1,9.1) and covers the ceiling button
           [-6.8..-5.2, 19.6..20.2, 8.4..9.8] -> the cage door opens. You fall up 18.4 m.
        Walk on the ceiling through the open door (x=4, z -7..-3) to the beacon at (6,19.2,-5). */
-  { name: 'The Cube', tip: 'Every wall is a floor in here. Get the crate onto the ceiling button.',
+  { name: 'The Cube', gem: [0, 15, 9.2], tip: 'Every wall is a floor in here. Get the crate onto the ceiling button.',
     par: { flips: 2, time: 35 }, spawn: [3, 0.8, -6], yaw: Math.PI, beacon: [6, 19.2, -5], bn: [1, -1],
     bounds: [-12, -2, -12, 12, 22, 12], indoor: true,
     boxes: [
@@ -373,7 +398,7 @@ const LEVELS = [
        2. walk to about z=-22, aim the far tower (face z=-62, 40 m away, inside the 45 m range), flip -> -z.
           Fall 30 m (36 m/s - fatal on its own) into the cushion zone (z -62..-54) which slows you to
           ~2 m/s. Land at y~16.8, walk up the wall to the beacon at y=24. */
-  { name: 'Updraft', tip: 'Fans push you (and crates). Ride the updraft to the top, then steer onto the glass roof.',
+  { name: 'Updraft', gem: [5, 31, -61.2], tip: 'Fans push you (and crates). Ride the updraft to the top, then steer onto the glass roof.',
     par: { flips: 1, time: 40 }, spawn: [0, 0.8, 8], yaw: 0, beacon: [0, 24, -61.2], bn: [2, 1],
     bounds: [-45, -30, -100, 45, 80, 35],
     boxes: [
@@ -395,7 +420,7 @@ const LEVELS = [
           The wall lift (4x4, surface 0.9 m above the wall) slides between y 17.5..21.5 and y 32.5..36.5.
           Jump onto it (jump = 1.45 m), ride over the band, walk off its top edge (y>36.5).
        4. walk up to the beacon at y=42. */
-  { name: 'Sky Ferry', tip: 'Moving platforms carry you. Ride the ferry, then jump (Space) onto the wall lift to cross the electric band.',
+  { name: 'Sky Ferry', gem: [-4.5, 47.5, -49.2], cps: [{ p: [0, 10.8, -40], g: [1, -1] }], tip: 'Moving platforms carry you. Ride the ferry, then jump (Space) onto the wall lift to cross the electric band.',
     par: { flips: 1, time: 60 }, spawn: [0, 10.8, 3], yaw: 0, beacon: [0, 42, -49.2], bn: [2, 1],
     bounds: [-45, -30, -95, 45, 80, 30],
     boxes: [
@@ -423,7 +448,7 @@ const LEVELS = [
           at z -63..-59 (move below y 3.5 between z=-52.5 and z=-58.5). Leave the zone at z=-70;
           gravity stays +x and the wall continues to z=-78.
        4. aim the finish floor (top y=0, z -92..-70), flip -> -y, walk to the beacon at (0,0.8,-84). */
-  { name: 'Lockdown', tip: 'Red zone: no flipping inside. Purple zone: gravity is forced. Choose your floor before you walk in.',
+  { name: 'Lockdown', gem: [0, 9.2, 9], tip: 'Red zone: no flipping inside. Purple zone: gravity is forced. Choose your floor before you walk in.',
     par: { flips: 2, time: 50 }, night: true, spawn: [0, 0.8, 6], yaw: 0, beacon: [0, 0.8, -84], bn: [1, 1],
     bounds: [-30, -25, -105, 30, 40, 25],
     boxes: [
@@ -465,7 +490,7 @@ const LEVELS = [
        6. aim the roof (y=14), flip -> -y (max 20 m drop).
        7. walk to z~-89, aim the last tower (face z=-128, 39 m away), flip -> -z. Fall 30 m into the
           cushion fan (z -128..-120), land at ~2 m/s, walk up the wall to the beacon at y=22. */
-  { name: 'Grand Tour', tip: 'Everything you have learned: crate, fans, ferry, zones and one very long fall.',
+  { name: 'Grand Tour', gem: [-9.2, 32.5, -80], cps: [{ p: [0, 14.8, -20], g: [1, -1] }, { p: [0, 14.8, -61], g: [1, -1] }, { p: [0, 14.8, -84], g: [1, -1] }], tip: 'Everything you have learned: crate, fans, ferry, zones and one very long fall.',
     par: { flips: 4, time: 100 }, night: true, spawn: [2, 0.8, 8], yaw: 0, beacon: [0, 22, -127.2], bn: [2, 1],
     bounds: [-45, -30, -175, 45, 80, 35],
     boxes: [
@@ -505,7 +530,7 @@ const LEVELS = [
           [14.6..15.2, 0.1..1.7, -19.9..-18.3] -> both cage doors open.
        2. aim the ground, flip -> -y (4 m drop). The fan keeps the crate pressed into the corner.
           Walk out of the stream (+z), round to the cage door (x=8, z 4..12) and in to the beacon (11,0.8,8). */
-  { name: 'Tailwind', tip: 'No wall to flip the crate sideways this time. Let the fan stream along the back wall carry it.',
+  { name: 'Tailwind', gem: [-14, 0.8, -18.6], tip: 'No wall to flip the crate sideways this time. Let the fan stream along the back wall carry it.',
     par: { flips: 2, time: 35 }, spawn: [-11, 4.8, 0], yaw: 0, beacon: [11, 0.8, 8], bn: [1, 1],
     bounds: [-40, -20, -45, 40, 50, 35],
     boxes: [
@@ -530,7 +555,7 @@ const LEVELS = [
        3. walk on the underside to z~-39.5. Ferry 2 hangs level with the plate (underside y=22) and slides
           z=-42.1 <-> z=-61.9: step onto it upside down, ride, step off onto plate 2 (z -76..-64).
        4. walk to z=-72, aim the roof below (y=6), flip -> -y (14.4 m), landing at the beacon (0,6.8,-72). */
-  { name: 'Ceiling Ferry', tip: 'Platforms carry you on any side. Ride the second ferry upside down.',
+  { name: 'Ceiling Ferry', gem: [0, 21.2, -75.3], cps: [{ p: [0, 10.8, -32], g: [1, -1] }, { p: [0, 21.2, -70], g: [1, 1] }], tip: 'Platforms carry you on any side. Ride the second ferry upside down.',
     par: { flips: 2, time: 55 }, night: true, spawn: [0, 10.8, 3], yaw: 0, beacon: [0, 6.8, -72], bn: [1, 1],
     bounds: [-45, -30, -110, 45, 70, 30],
     boxes: [
@@ -555,7 +580,7 @@ const LEVELS = [
           [5.2..6.8, 0.1..1.7, 9.6..10.2]. Both doors of the cage open.
        Walk through both doors (x=4 and x=5.3, z -10..-4) to the beacon at (7.5,0.8,-7).
        (Going +z first leaves crate A stuck under the shelf.) */
-  { name: 'Split Up', tip: 'Two crates, two buttons, two laser doors. The shelf can catch one crate on its way down.',
+  { name: 'Split Up', gem: [-8.5, 10.8, 3], tip: 'Two crates, two buttons, two laser doors. The shelf can catch one crate on its way down.',
     par: { flips: 3, time: 50 }, spawn: [0, 0.8, -6], yaw: Math.PI, beacon: [7.5, 0.8, -7], bn: [1, 1],
     bounds: [-12, -2, -12, 12, 22, 12], indoor: true,
     boxes: [
@@ -579,7 +604,7 @@ const LEVELS = [
      face the tower, and while falling past the wall aim it and flip -> +z. Only the speed INTO a surface
      hurts, so the landing is soft; you skid down the wall to a stop. The wall runs from y=30 down to
      y=-90, giving about 3 seconds. Walk to the beacon at (0,-10,-6.8). */
-  { name: 'Leap of Faith', tip: 'The beacon is on the wall under your feet. Step backwards off the edge behind you, then flip onto the wall as you fall past it.',
+  { name: 'Leap of Faith', gem: [4, -60, -6.8], tip: 'The beacon is on the wall under your feet. Step backwards off the edge behind you, then flip onto the wall as you fall past it.',
     par: { flips: 1, time: 20 }, spawn: [0, 30.8, -2], yaw: Math.PI, beacon: [0, -10, -6.8], bn: [2, -1],
     bounds: [-40, -85, -45, 40, 60, 40],
     boxes: [
@@ -598,7 +623,7 @@ const LEVELS = [
        6. at z about -84 aim the tower roof below (y=14), flip -> -y (14.4 m).
        7. step off the far edge (z < -92) and, falling past the wall (face z=-92), aim it and flip -> +z.
           Walk to the beacon at (0,-6,-92.8). */
-  { name: 'Night Shift', tip: 'One last run: truck shield, updraft, ceiling ferry, and a leap of faith at the end.',
+  { name: 'Night Shift', gem: [0, 29.2, -89.3], cps: [{ p: [3.5, 0.8, -20], g: [1, -1] }, { p: [0, 18.8, -33], g: [1, -1] }, { p: [0, 14.8, -85], g: [1, -1] }], tip: 'One last run: truck shield, updraft, ceiling ferry, and a leap of faith at the end.',
     par: { flips: 5, time: 110 }, night: true, spawn: [0, 0.8, 6], yaw: 0, beacon: [0, -6, -92.8], bn: [2, -1],
     bounds: [-45, -85, -135, 45, 70, 35],
     boxes: [
@@ -612,7 +637,213 @@ const LEVELS = [
     crates: [{ p: [0, 1.3, -6], h: [1.3, 1.3, 3], truck: true }],
     elec: [[-8, 0, -28, 8, 18, -27.6]],
     fans: [{ b: [-5.5, 0, -27, -1.5, 22, -23], d: [1, 1], v: 12 }],
-    plats: [{ h: [2, 0.3, 2], a: [0, 30.3, -54.1], b: [0, 30.3, -73.9], T: 9 }] }
+    plats: [{ h: [2, 0.3, 2], a: [0, 30.3, -54.1], b: [0, 30.3, -73.9], T: 9 }] },
+
+  /* ============================ WORLD 4: THE FOUNDRY (patrol drones) ============================ */
+
+  /* 16. PATROL
+     The long wall (face x=-8) is only safe between y=-4 and y=6: electric above and below. Drones sweep
+     that corridor up and down (y -3..5) at z=-22, z=-36 and a crossing pair at z=-50.
+     Solution (2 flips):
+       1. aim the wall, flip -> -x (7.2 m).
+       2. walk along the wall (-z). Cross each drone line when the drone is at the far end of its sweep;
+          at z=-50 go through the middle (y~1) while the pair are apart at the two ends.
+          Checkpoint on the wall at z=-29.
+       3. past z=-64 aim the far street, flip -> -y, walk to the beacon at (0,0.8,-74). */
+  { name: 'Patrol', gem: [-7.2, -3.2, -43], cps: [{ p: [-7.2, 0.8, -29], g: [0, -1] }], theme: 'foundry',
+    tip: 'Drones zap on touch. Watch the red dotted line - that is their patrol path - and slip past behind them.',
+    par: { flips: 2, time: 45 }, spawn: [0, 0.8, 4], yaw: 0, beacon: [0, 0.8, -74], bn: [1, 1],
+    bounds: [-40, -30, -100, 40, 60, 30],
+    boxes: [
+      { t: 'ground', b: [-8, -1, -8, 8, 0, 12] },
+      { t: 'bldg', b: [-20, -40, -80, -8, 40, 12] },
+      { t: 'ground', b: [-8, -1, -80, 8, 0, -64] }
+    ],
+    elec: [[-8, 6, -64, -7.6, 40, -8], [-8, -40, -64, -7.6, -4, -8]],
+    drones: [
+      { a: [-7.2, -3, -22], b: [-7.2, 5, -22], T: 4 },
+      { a: [-7.2, 5, -36], b: [-7.2, -3, -36], T: 5 },
+      { a: [-7.2, -3, -50], b: [-7.2, 5, -50], T: 3.4 },
+      { a: [-7.2, 5, -50], b: [-7.2, -3, -50], T: 3.4 }
+    ] },
+
+  /* 17. SLIDE RULE  (sliding-crate maze, 8-flip limit)
+     The crate slides until a block or wall stops it. The ceiling is glass, so only the four walls work.
+     Blocks (3 m tall): B1 x -8..-6, z 2..4;  B2 x 4..6, z 0..2;  B3 x 2..4, z -8..-6.
+     Solution (5 flips):
+       1. aim wall z=+10, flip -> +z: crate (-7,-7) slides up its column until B1 -> (-7, 1.1).
+       2. aim wall x=+10, flip -> +x: its row (z 0.2..2) meets B2 -> (3.1, 1.1).
+       3. aim wall z=-10, flip -> -z: its column (x 2.2..4) meets B3 -> (3.1, -5.1).
+       4. aim wall x=+10, flip -> +x: row z -6..-4.2 is clear to the wall -> (9.1, -5.1) = the floor button
+          [8.4..9.8, 0..0.3, -5.8..-4.4]. The cage door opens.
+       5. aim the floor, flip -> -y. Walk round to the cage door (z=6, x -10..-6); a drone sweeps in front
+          of it (x -9.2..-6.6 at z=4.6), go in on the side it is not. Beacon at (-8,0.8,8).
+     Leaving column x=-7 any other way makes the button unreachable: press R. */
+  { name: 'Slide Rule', gem: [0, 6, 0], theme: 'foundry', indoor: true, limit: 8,
+    tip: 'The crate slides until something stops it. Plan its route to the floor button. The ceiling is glass. R restarts.',
+    par: { flips: 5, time: 70 }, spawn: [-3, 0.8, -3], yaw: Math.PI, beacon: [-8, 0.8, 8], bn: [1, 1],
+    bounds: [-12, -2, -12, 12, 14, 12],
+    boxes: [
+      { t: 'panel', b: [-11, -1, -11, 11, 0, 11] },
+      { t: 'glass', b: [-11, 12, -11, 11, 13, 11] },
+      { t: 'panel', b: [-11, 0, -11, -10, 12, 11] },
+      { t: 'panel', b: [10, 0, -11, 11, 12, 11] },
+      { t: 'panel', b: [-10, 0, -11, 10, 12, -10] },
+      { t: 'panel', b: [-10, 0, 10, 10, 12, 11] },
+      { t: 'block', b: [-8, 0, 2, -6, 3, 4] },
+      { t: 'block', b: [4, 0, 0, 6, 3, 2] },
+      { t: 'block', b: [2, 0, -8, 4, 3, -6] },
+      { t: 'glass', b: [-10, 4, 6, -5.7, 4.3, 10] },
+      { t: 'glass', b: [-6, 0, 6, -5.7, 4, 10] }
+    ],
+    crates: [{ p: [-7, 0.9, -7], h: [0.9, 0.9, 0.9] }],
+    buttons: [{ b: [8.4, 0, -5.8, 9.8, 0.3, -4.4], g: 1 }],
+    doors: [{ b: [-10, 0, 5.7, -5.7, 4.3, 6], g: 1 }],
+    drones: [{ a: [-9.2, 0.8, 4.6], b: [-6.6, 0.8, 4.6], T: 3 }] },
+
+  /* 18. HOT AIR  (wind jump + drones)
+     Solution (1 flip):
+       1. run into the wind tunnel on roof A (zone x -3..3, z -26..-2, blowing -z at 18). It throws you
+          across the 12 m gap (z -18..-6) while you drop 14 m onto roof B (top y=2). Checkpoint at z=-22.
+       2. roof B: two drones sweep the full width at z=-30 and z=-38. Pass behind each. Checkpoint at z=-46.
+       3. at z about -48.5 aim tower C (face z=-68), flip -> -z (18 m).
+       4. walk up the wall. Drones sweep across at y=30 and y=40. (The wall fan in the middle lane,
+          x -2..2, carries you up fast if you dare.) Beacon at y=50. */
+  { name: 'Hot Air', gem: [5, 56, -67.2], cps: [{ p: [0, 2.8, -22], g: [1, -1] }, { p: [4.5, 2.8, -46], g: [1, -1] }], theme: 'foundry',
+    tip: 'Run into the wind tunnel and let it throw you across the gap. Then time the drones.',
+    par: { flips: 1, time: 60 }, spawn: [0, 16.8, 6], yaw: 0, beacon: [0, 50, -67.2], bn: [2, 1],
+    bounds: [-45, -35, -110, 45, 90, 30],
+    boxes: [
+      { t: 'bldg', b: [-6, -40, -6, 6, 16, 10] },
+      { t: 'bldg', b: [-6, -40, -50, 6, 2, -18] },
+      { t: 'bldg', b: [-6, -40, -88, 6, 60, -68] }
+    ],
+    fans: [
+      { b: [-3, 2, -26, 3, 22, -2], d: [2, -1], v: 18 },
+      { b: [-2, 6, -68, 2, 44, -65], d: [1, 1], v: 10 }
+    ],
+    drones: [
+      { a: [-5.4, 2.8, -30], b: [5.4, 2.8, -30], T: 3 },
+      { a: [5.4, 2.8, -38], b: [-5.4, 2.8, -38], T: 2.6 },
+      { a: [-5, 30, -67.2], b: [5, 30, -67.2], T: 3.2 },
+      { a: [5, 40, -67.2], b: [-5, 40, -67.2], T: 2.8 }
+    ] },
+
+  /* ============================ WORLD 5: ORBIT STATION ============================ */
+
+  /* 19. AIRLOCK  (a station tube: x,y from -4 to 4)
+     Solution (2 flips):
+       1. walk in on the floor. At z=-8 a LOCK zone (z -28..-8) throws you onto the ceiling.
+          A drone sweeps across at z=-14: cross on the side it is not. Ceiling electric patches:
+          x -4..0.5 at z -20..-17 (pass at x>1), x -0.5..4 at z -27..-24 (pass at x<-1).
+       2. in the gap (z -34..-28, checkpoint) aim the right wall (x=4), flip -> +x. Move down to y~-2.
+       3. NO-FLIP zone z -54..-34: floor, ceiling and left wall are electric. Stay on the right wall
+          between y -3.1 and 3.1. Drones sweep y -2.6..2.6 at z=-40 and z=-48: pass when each is high.
+       4. past z=-54 aim the left wall (x=-4), flip -> -x (6.4 m). Beacon at (-3.2,0,-64). */
+  { name: 'Airlock', gem: [0, -3.2, -31], cps: [{ p: [0, 3.2, -31], g: [1, 1] }], theme: 'orbit', indoor: true,
+    tip: 'Purple zones force your gravity. Use the gaps between zones to choose your next wall.',
+    par: { flips: 2, time: 60 }, spawn: [0, -3.2, 6], yaw: 0, beacon: [-3.2, 0, -64], bn: [0, 1],
+    bounds: [-30, -30, -95, 30, 30, 35],
+    boxes: [
+      { t: 'panel', b: [-5, -5, -71, 5, -4, 11] },
+      { t: 'panel', b: [-5, 4, -71, 5, 5, 11] },
+      { t: 'panel', b: [4, -4, -71, 5, 4, 11] },
+      { t: 'glass', b: [-5, -4, -54, -4, 4, 11] },
+      { t: 'panel', b: [-5, -4, -71, -4, 4, -54] },
+      { t: 'glass', b: [-4, -4, 10, 4, 4, 11] },
+      { t: 'panel', b: [-4, -4, -71, 4, 4, -70] }
+    ],
+    elec: [
+      [-4, 3.6, -20, 0.5, 4, -17], [-0.5, 3.6, -27, 4, 4, -24],
+      [-4, -4, -54, 4, -3.6, -34], [-4, 3.6, -54, 4, 4, -34], [-4, -4, -54, -3.6, 4, -34]
+    ],
+    zones: [
+      { t: 'lock', g: [1, 1], b: [-4, -4, -28, 4, 4, -8] },
+      { t: 'noflip', b: [-4, -4, -54, 4, 4, -34] }
+    ],
+    drones: [
+      { a: [-3, 3.2, -14], b: [3, 3.2, -14], T: 3 },
+      { a: [3.2, -2.6, -40], b: [3.2, 2.6, -40], T: 3.2 },
+      { a: [3.2, 2.6, -48], b: [3.2, -2.6, -48], T: 3.8 }
+    ] },
+
+  /* 20. HOPSCOTCH  (five floating slabs, five flips, 6-flip limit)
+     Every landing has a drone on it, so pick WHERE you stand before each flip.
+       1. slab 0 (floor) -> aim slab 1 (face z=-20), flip -> -z (19.2 m). A drone sweeps x -3..3 along your
+          landing line (y=0.8): flip so that it is away when you land 1.3 s later, then walk up the slab.
+       2. on slab 1 walk to y~6 (the drone on slab 2 runs along y=2), aim slab 2 (face x=18), flip -> +x (17 m).
+          Checkpoint on slab 2.
+       3. walk to z~-26 (drone on slab 3 runs along z=-22), aim slab 3 (underside y=24), flip -> +y.
+       4. walk to x~22.3 (drone on slab 4 covers x 11.4..20.6; the slab runs to x=24), aim slab 4 (face z=-46), flip -> -z (19 m).
+       5. aim slab 5 (top y=6) below, flip -> -y (16.4 m). Beacon at (16,6.8,-40). */
+  { name: 'Hopscotch', gem: [17.2, 9, -15.5], cps: [{ p: [17.2, 5, -22], g: [0, 1] }], theme: 'orbit', limit: 6,
+    tip: 'Each slab has a drone on it. The landing ring shows where you will arrive - choose your spot first.',
+    par: { flips: 5, time: 60 }, spawn: [0, 0.8, 0], yaw: 0, beacon: [16, 6.8, -40], bn: [1, 1],
+    bounds: [-30, -30, -70, 45, 50, 30],
+    boxes: [
+      { t: 'panel', b: [-4, -1, -4, 4, 0, 4] },
+      { t: 'panel', b: [-4, -4, -21, 4, 8, -20] },
+      { t: 'panel', b: [18, -4, -30, 19, 10, -14] },
+      { t: 'panel', b: [10, 24, -30, 24, 25, -14] },
+      { t: 'panel', b: [10, 14, -47, 24, 30, -46] },
+      { t: 'panel', b: [10, 5, -46, 24, 6, -36] }
+    ],
+    drones: [
+      { a: [-3, 0.8, -19.2], b: [3, 0.8, -19.2], T: 4 },
+      { a: [17.2, 2, -28], b: [17.2, 2, -16], T: 3.4 },
+      { a: [12, 23.2, -22], b: [20, 23.2, -22], T: 3 },
+      { a: [12, 23.2, -45.2], b: [20, 23.2, -45.2], T: 3.6 }
+    ] },
+
+  /* 21. REACTOR  (third finale)
+     Solution (3 flips):
+       1. aim the slab above (underside y=12), flip -> +y. Ride the ceiling ferry (z=-10.1 <-> z=-33.9).
+          Two sentry drones hang in its path: at z=-17 on the x=-1 side, at z=-27 on the x=+1 side.
+          Stand on the other side of the ferry each time. Checkpoint on the far slab.
+       2. aim the pad below (top y=-4), flip -> -y (14.4 m). Checkpoint.
+       3. walk into the LOCK zone (z -76..-50): gravity -x drops you on the side wall (face x=-6).
+          Patch 1 covers y -4..4 at z -60..-56 (go above y 4.5). A drone sweeps y -3..9 at z=-63.
+          Patch 2 covers y 2..10 at z -70..-66 (go below y 1.5). Checkpoint past the zone at z=-78.
+       4. aim the reactor tower (face z=-118, 40 m), flip -> -z. The cushion fan (z -118..-110) brakes the
+          31 m fall. Walk up: a drone sweeps across at y=14. Beacon at (0,20,-117.2). */
+  { name: 'Reactor', gem: [-5.2, 9.3, -78.5], theme: 'orbit',
+    cps: [{ p: [0, 11.2, -40], g: [1, 1] }, { p: [0, -3.2, -46], g: [1, -1] }, { p: [-5.2, 0, -78], g: [0, -1] }],
+    tip: 'The last run. Sentries on the ferry, a locked corridor, and one very long fall into the cushion fan.',
+    par: { flips: 3, time: 120 }, spawn: [0, 0.8, 6], yaw: 0, beacon: [0, 20, -117.2], bn: [2, 1],
+    bounds: [-40, -30, -160, 40, 60, 30],
+    boxes: [
+      { t: 'panel', b: [-6, -1, -6, 6, 0, 10] },
+      { t: 'panel', b: [-4, 12, -8, 4, 13, 6] },
+      { t: 'panel', b: [-6, 12, -48, 6, 13, -36] },
+      { t: 'panel', b: [-6, -5, -52, 6, -4, -36] },
+      { t: 'panel', b: [-7, -4, -80, -6, 10, -46] },
+      { t: 'panel', b: [-8, -20, -136, 8, 50, -118] }
+    ],
+    plats: [{ h: [2, 0.3, 2], a: [0, 12.3, -10.1], b: [0, 12.3, -33.9], T: 11 }],
+    drones: [
+      { a: [-1, 11.2, -17], b: [-1, 11.2, -17], T: 1 },
+      { a: [1, 11.2, -27], b: [1, 11.2, -27], T: 1 },
+      { a: [-5.2, -3, -63], b: [-5.2, 9, -63], T: 3.4 },
+      { a: [-5, 14, -117.2], b: [5, 14, -117.2], T: 4 }
+    ],
+    zones: [{ t: 'lock', g: [0, -1], b: [-6, -4, -76, 6, 10, -50] }],
+    elec: [[-6, -4, -60, -5.6, 4, -56], [-6, 2, -70, -5.6, 10, -66]],
+    fans: [{ b: [-7, -8, -118, 7, 24, -110], d: [2, 1], v: 3 }] }
+];
+
+// Worlds: consecutive groups of levels, each unlocked by total stars.
+const WORLDS = [
+  { name: 'Downtown', n: 6, need: 0 },
+  { name: 'Uptown', n: 4, need: 8 },
+  { name: 'Midnight', n: 5, need: 18 },
+  { name: 'The Foundry', n: 3, need: 28 },
+  { name: 'Orbit Station', n: 3, need: 38 }
+];
+// Suit colours, unlocked by hidden gems.
+const SUITS = [
+  { name: 'Courier', col: 0xff7a1f, need: 0 }, { name: 'Azure', col: 0x2f8cff, need: 2 }, { name: 'Lime', col: 0x4fd13a, need: 5 },
+  { name: 'Violet', col: 0x9a5cff, need: 8 }, { name: 'Crimson', col: 0xe0283c, need: 12 }, { name: 'Gold', col: 0xf2c230, need: 16 },
+  { name: 'Shadow', col: 0x2b313d, need: 21 }
 ];
 
 // =====================================================================
@@ -728,7 +959,7 @@ function applyFans(b, dt) {
     if (!inside(b.p, f)) continue;
     const rel = f.v - b.v[f.a] * f.s;
     if (rel > 0) b.v[f.a] += f.s * CFG.FAN_K * rel * dt;
-    b.inFan = true;
+    if (f.a !== S.grav.a) b.inFan = true;          // only a sideways wind loosens your footing
   }
 }
 
@@ -863,15 +1094,52 @@ function stepPlayer(dt) {
   }
   // --- hazards + goal ---
   for (const e of S.elec) if (overlaps(P, e, 0)) { die('ZAP!'); return; }
-  if (!inside(P.p, S.bounds)) { die('LOST IN THE SKY'); return; }
+  for (const d of S.drones) if (overlaps(P, d, 0)) { die('ZAP!'); return; }
+  if (!inside(P.p, S.bounds)) { die(S.L.theme === 'orbit' ? 'LOST IN SPACE' : 'LOST IN THE SKY'); return; }
+  if (S.mode === 'play') stepPickups();
   const b = S.L.beacon, dx = P.p[0] - b[0], dy = P.p[1] - b[1], dz = P.p[2] - b[2];
   S.beaconDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
   if (P.grounded && S.beaconDist < 2) win();                  // must be STANDING next to the beacon
 }
 
+function stepDrones() {
+  for (const d of S.drones) {
+    const e = d.still ? 0 : 0.5 - 0.5 * Math.cos(2 * Math.PI * S.t / d.T);
+    for (let i = 0; i < 3; i++) d.p[i] = d.a[i] + (d.b[i] - d.a[i]) * e;
+    setBox(d);
+  }
+}
+function near(p, q, r) { const x = p[0] - q[0], y = p[1] - q[1], z = p[2] - q[2]; return x * x + y * y + z * z < r * r; }
+function stepPickups() {
+  const P = S.player;
+  if (S.gem && !S.gem.got && near(P.p, S.gem.p, 1.4)) {       // hidden gem: saved the moment you touch it
+    S.gem.got = true; save.gems[S.li] = 1; persist();
+    sfx.gem(); burst(S.gem.p, 60, 0x40ffe0, 7, 1.1); toast('Hidden gem found!');
+  }
+  // checkpoints: stand next to one, in its gravity, to save your place (crates and flip count too)
+  for (let n = S.cpIdx + 1; n < S.cps.length; n++) {
+    const c = S.cps[n];
+    if (!P.grounded || S.grav.a !== c.g[0] || S.grav.s !== c.g[1] || !near(P.p, c.p, 2.6)) continue;
+    S.cpIdx = n;
+    c.snap = { flips: S.flips, yaw: S.yaw, q: S.orientTarget.clone(), crates: S.crates.map(k => [k, k.p.slice()]) };
+    for (let k = 0; k <= n; k++) S.cps[k].mat.color.setHex(0x43ff7a);
+    sfx.checkpoint(); burst(c.p, 30, 0x43ff7a, 5, 0.8); toast('Checkpoint!');
+  }
+}
+function respawnCheckpoint() {
+  const c = S.cps[S.cpIdx], P = S.player, sn = c.snap;
+  S.grav = { a: c.g[0], s: c.g[1] }; S.hist = []; S.flips = sn.flips; S.zone = null; S.aim = null; S.focus = false; S.timeScale = 1;
+  for (let i = 0; i < 3; i++) { P.p[i] = c.p[i]; P.v[i] = 0; P.h[i] = i === c.g[0] ? CFG.EXT_A : CFG.EXT_P; }
+  setBox(P); P.grounded = false; P.inFan = false;
+  S.orientTarget.copy(sn.q); S.orientSmooth.copy(sn.q); S.orientFrom.copy(sn.q);
+  S.flipT = 1; S.pitchOff = 0; S.yaw = S.modelYaw = sn.yaw; S.pitch = -0.1;
+  for (const pair of sn.crates) { const k = pair[0]; for (let i = 0; i < 3; i++) { k.p[i] = pair[1][i]; k.v[i] = 0; } setBox(k); k.grounded = false; }
+  S.mode = 'play';
+}
 function tick(dt) {
   S.t += dt;
   stepPlats(dt);
+  stepDrones();
   stepCrates(dt);
   stepButtons();
   if (S.mode === 'play' || S.mode === 'win') stepPlayer(dt);
@@ -966,6 +1234,12 @@ function tryFlip() {
   setGravity(aim.g2, true);
   sfx.flip();
 }
+// Hold the flip button in mid-air: time slows while you aim, and the flip happens when you let go.
+function flipPress() {
+  if (S.mode !== 'play') return;
+  if (!S.player.grounded && opts.slow < 1) S.focus = true; else tryFlip();
+}
+function flipRelease() { if (S.focus) { S.focus = false; tryFlip(); } }
 function undoFlip() {
   if (S.mode !== 'play') return;
   if (S.zone) { sfx.deny(); toast(S.zone.t === 'lock' ? 'Gravity is locked here' : 'No flipping in this zone'); return; }
@@ -1130,23 +1404,52 @@ const TEX = {
 };
 const NEON = [0x38e8ff, 0xff4fd8, 0xffc24a];
 const MAT = {};
-function makeMaterials(night) {
+TEX.planet = canvasTex(256, (g, s) => {
+  g.clearRect(0, 0, s, s);
+  softDot(g, s / 2, s / 2, s / 2, 'rgba(90,170,255,.55)');                      // atmosphere glow
+  g.save(); g.beginPath(); g.arc(s / 2, s / 2, s * 0.4, 0, 6.3); g.clip();
+  const gr = g.createLinearGradient(0, s * 0.1, 0, s * 0.9);
+  gr.addColorStop(0, '#2a6fd0'); gr.addColorStop(0.5, '#3fa0c8'); gr.addColorStop(1, '#1d4a9a');
+  g.fillStyle = gr; g.fillRect(0, 0, s, s);
+  const r = rng(31);
+  for (let i = 0; i < 26; i++) { g.fillStyle = i % 3 ? 'rgba(70,160,90,.55)' : 'rgba(255,255,255,.5)'; g.beginPath(); g.ellipse(r() * s, r() * s, 10 + r() * 34, 4 + r() * 12, r() * 3, 0, 6.3); g.fill(); }
+  const sh = g.createLinearGradient(s * 0.25, s * 0.25, s * 0.8, s * 0.8);                                    // night side
+  sh.addColorStop(0, 'rgba(0,0,10,0)'); sh.addColorStop(1, 'rgba(0,0,10,.9)');
+  g.fillStyle = sh; g.fillRect(0, 0, s, s); g.restore();
+});
+// Each world has its own sky, light and colours. lit = windows glow; space = no fog, clouds or skyline.
+const THEMES = {
+  day: { lit: false, sky: [[0, '#1b66c9'], [0.28, '#4f9de6'], [0.46, '#a9d4f5'], [0.525, '#fff0d6'], [0.57, '#c2dbee'], [0.75, '#8fb0cf'], [1, '#6f8fae']],
+    fog: [0xcfe6fa, 120, 600], hemi: [0xdfeeff, 0x6f7480, 0.74], sun: [0xfff4e0, 0.95], orbs: [[0xfff1c4, 560, 0.6], [0xffffff, 130, 1]],
+    sea: [0xeaf4fd, 0.78, 0xffffff, 0.95], cloud: [0xffffff, 0.9], wall: 0xffffff, gnd: 0xffffff, deco: 0xb9c6d4, trim: null, edge: 0x0c1118 },
+  night: { lit: true, stars: true, sky: [[0, '#02030a'], [0.3, '#090b24'], [0.46, '#22154e'], [0.53, '#7a3284'], [0.57, '#2a1848'], [0.7, '#0c0c22'], [1, '#04040c']],
+    fog: [0x1c1438, 120, 600], hemi: [0x8a94ff, 0x2a1c44, 0.6], sun: [0x9ab0ff, 0.4], orbs: [[0x8fa8ff, 300, 0.45], [0xeef3ff, 70, 1]],
+    sea: [0x1d1740, 0.8, 0x4a3f8a, 0.5], cloud: [0x3d3470, 0.45], wall: 0x566078, gnd: 0x8088a8, deco: 0x343c50, trim: [0x38e8ff, 0xff4fd8, 0xffc24a], edge: 0x6f8cff },
+  foundry: { lit: true, sky: [[0, '#0d0403'], [0.3, '#2a0a06'], [0.46, '#7a2408'], [0.53, '#ffb347'], [0.58, '#c2410c'], [0.72, '#4a1206'], [1, '#1a0503']],
+    fog: [0x4a1a0c, 70, 430], hemi: [0xffb48a, 0x4a1408, 0.66], sun: [0xff9d5c, 0.62], orbs: [[0xff6a20, 620, 0.5], [0xffd9a8, 120, 1]],
+    sea: [0xff4a12, 0.96, 0xffd060, 0.7], cloud: [0x2c1712, 0.6], wall: 0x86665a, gnd: 0xa89080, deco: 0x4a342c, trim: [0xff7a2a, 0xffc24a, 0xff4f3a], edge: 0xff8a40 },
+  orbit: { lit: true, stars: true, space: true, sky: [[0, '#000004'], [0.4, '#03040c'], [0.5, '#0d0b2a'], [0.6, '#03040c'], [1, '#000004']],
+    fog: null, hemi: [0xbfd0ff, 0x1c2238, 0.6], sun: [0xffffff, 1.0], orbs: [[0xdfe8ff, 340, 0.5], [0xffffff, 90, 1]],
+    sea: null, cloud: null, wall: 0x70788c, gnd: 0xc4cee4, deco: 0x8894aa, trim: [0x38e8ff, 0x7f9cff, 0xffffff], edge: 0x8fd0ff }
+};
+function makeMaterials(night, th) {
   for (const k in MAT) { const m = MAT[k]; (Array.isArray(m) ? m : [m]).forEach(x => x.dispose && x.dispose()); delete MAT[k]; }
   const roof = new THREE.MeshLambertMaterial({ map: TEX.roof, color: night ? 0x596378 : 0xffffff });
+  const pan = th.space ? 0xd0d8ea : night ? 0x8fa0c8 : 0xffffff;
   MAT.bldg = TEX.win.map(t => {
-    const side = new THREE.MeshLambertMaterial({ map: t.map, color: night ? 0x566078 : 0xffffff,
+    const side = new THREE.MeshLambertMaterial({ map: t.map, color: th.wall,
       emissive: night ? 0xffffff : 0x000000, emissiveMap: t.em, emissiveIntensity: night ? 1.0 : 0 });
     return [side, side, roof, roof, side, side];
   });
-  MAT.ground = new THREE.MeshLambertMaterial({ map: TEX.ground, color: night ? 0x8088a8 : 0xffffff });
-  MAT.panel = new THREE.MeshPhongMaterial({ map: TEX.panel, color: night ? 0x8fa0c8 : 0xffffff, specular: 0x1c232b, shininess: 22,
+  MAT.ground = new THREE.MeshLambertMaterial({ map: TEX.ground, color: th.gnd });
+  MAT.panel = new THREE.MeshPhongMaterial({ map: TEX.panel, color: pan, specular: 0x1c232b, shininess: 22,
     emissive: night ? 0x141f3a : 0x000000 });
-  MAT.block = new THREE.MeshLambertMaterial({ map: TEX.block, color: night ? 0x7884a0 : 0xffffff });
+  MAT.block = new THREE.MeshLambertMaterial({ map: TEX.block, color: th.gnd });
   MAT.glass = new THREE.MeshPhongMaterial({ color: 0x7fcdf2, transparent: true, opacity: night ? 0.34 : 0.42, depthWrite: false,
     specular: 0xffffff, shininess: 120, emissive: night ? 0x0c3550 : 0x000000 });
   MAT.crate = new THREE.MeshLambertMaterial({ map: TEX.crate });
   MAT.plat = new THREE.MeshLambertMaterial({ map: TEX.hazard, emissive: night ? 0x6a3c00 : 0x201000, emissiveMap: TEX.hazard });
-  MAT.deco = TEX.win.map(t => new THREE.MeshLambertMaterial({ map: t.map, color: night ? 0x343c50 : 0xb9c6d4,
+  MAT.deco = TEX.win.map(t => new THREE.MeshLambertMaterial({ map: t.map, color: th.deco,
     emissive: night ? 0xffffff : 0x000000, emissiveMap: t.em, emissiveIntensity: night ? 0.75 : 0 }));
 }
 // box geometry whose texture repeats every `tile` metres
@@ -1188,6 +1491,7 @@ function makePlayerModel(ghost) {
   const lit = c => gm || new THREE.MeshBasicMaterial({ color: c });
   const add = (parent, geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = !ghost; parent.add(m); return m; };
   const suit = lam(0xff7a1f), trim = lam(0xffc98a), dark = lam(0x27344a), white = pho(0xf2f5f8, 70), grey = lam(0x5d6979), glove = lam(0x1d2838);
+  const stripe = lit(0xff7a1f); g.suitMats = ghost ? [] : [suit, stripe];          // recoloured by setSuit()
   // torso: tapered jacket, collar, chest light, belt, shoulder pads
   add(body, new THREE.CylinderGeometry(0.21, 0.165, 0.5, 14), suit, 0, 0.1, 0).scale.z = 0.72;
   add(body, new THREE.CylinderGeometry(0.168, 0.168, 0.07, 14), dark, 0, -0.17, 0).scale.z = 0.74;
@@ -1206,7 +1510,7 @@ function makePlayerModel(ghost) {
   g.tip = add(head, new THREE.SphereGeometry(0.03, 8, 6), lit(0xff4a4a), 0.15, 0.36, 0.04);
   // jetpack: tank, two nozzles, two flames (only lit while airborne)
   add(body, new THREE.BoxGeometry(0.32, 0.36, 0.13), grey, 0, 0.14, 0.2);
-  add(body, new THREE.BoxGeometry(0.2, 0.06, 0.02), lit(0xff7a1f), 0, 0.24, 0.27);
+  add(body, new THREE.BoxGeometry(0.2, 0.06, 0.02), stripe, 0, 0.24, 0.27);
   g.flames = [];
   for (const sx of [-1, 1]) {
     add(body, new THREE.CylinderGeometry(0.05, 0.07, 0.16, 10), dark, sx * 0.095, -0.1, 0.21);
@@ -1249,6 +1553,10 @@ function posePlayer(m, moving, grounded, fall, look, dt, now) {
   for (const f of m.flames) { f.visible = a > 0.4; f.scale.set(1, 0.6 + Math.random() * 0.7 + fall * 0.5, 1); }
 }
 const playerMesh = makePlayerModel(false), ghostMesh = makePlayerModel(true);
+function setSuit(i) {
+  const c = SUITS[i].col;
+  playerMesh.suitMats.forEach(m => { m.color.setHex(c); if (m.emissive) m.emissive.setHex(c).multiplyScalar(0.16); });
+}
 ghostMesh.visible = false;
 scene.add(playerMesh, ghostMesh);
 
@@ -1318,7 +1626,9 @@ const ZAX = new THREE.Vector3(0, 0, 1);
 function buildLevel(i, keep) {          // keep = only rebuild the meshes (used when the sky option changes)
   S.li = i;
   const L = S.L = LEVELS[i];
-  S.night = opts.sky === 'night' || (opts.sky === 'auto' && !!L.night);
+  // city levels follow the Sky option; the later worlds bring their own theme
+  const th = THEMES[L.theme || ((opts.sky === 'night' || (opts.sky === 'auto' && !!L.night)) ? 'night' : 'day')];
+  S.night = !!th.lit;
   if (!keep) {
   S.statics = L.boxes.map(x => Object.assign(normBox(x.b), { kind: 'static', type: x.t }));
   S.doors = (L.doors || []).map(d => Object.assign(normBox(d.b), { kind: 'door', g: d.g, open: false }));
@@ -1329,6 +1639,11 @@ function buildLevel(i, keep) {          // keep = only rebuild the meshes (used 
   S.plats = (L.plats || []).map(p => ({ kind: 'plat', p: p.a.slice(), h: p.h.slice(), v: [0, 0, 0], mn: [0, 0, 0], mx: [0, 0, 0], a: p.a, b: p.b, T: p.T }));
   S.crates = (L.crates || []).map(c => ({ kind: 'crate', p: c.p.slice(), p0: c.p, h: c.h.slice(), v: [0, 0, 0], mn: [0, 0, 0], mx: [0, 0, 0], truck: !!c.truck, grounded: false }));
   S.plats.forEach(setBox); S.crates.forEach(setBox);
+  S.drones = (L.drones || []).map(d => ({ a: d.a, b: d.b, T: d.T, still: d.a.join() === d.b.join(), p: d.a.slice(), h: [0.6, 0.6, 0.6], mn: [0, 0, 0], mx: [0, 0, 0] }));
+  S.drones.forEach(setBox);
+  S.cps = (L.cps || []).map(c => ({ p: c.p, g: c.g, snap: null, mat: null }));
+  S.cpIdx = -1;
+  S.gem = L.gem ? { p: L.gem, got: !!save.gems[i] } : null;
   S.bounds = normBox(L.bounds);
   S.bodies = S.crates.concat([S.player]);
   S.solids = S.statics.concat(S.doors, S.plats, S.crates, [S.player]);
@@ -1341,7 +1656,7 @@ function buildLevel(i, keep) {          // keep = only rebuild the meshes (used 
   world = new THREE.Group(); scene.add(world);
   const hq = isHQ();
   renderer.shadowMap.enabled = hq; sun.castShadow = hq && !L.indoor;   // indoors the roof would shade everything
-  makeMaterials(S.night);
+  makeMaterials(S.night, th);
   fx.fans = []; fx.elec = []; fx.clouds = null;
   if (fx.sea) { fx.sea.dispose(); fx.sea = null; }
   const night = S.night, B = S.bounds;
@@ -1349,66 +1664,75 @@ function buildLevel(i, keep) {          // keep = only rebuild the meshes (used 
   // sky dome, fog, lights
   const skyTex = canvasTex(512, (g, s) => {
     const gr = g.createLinearGradient(0, 0, 0, s);
-    const st = night ? [[0, '#02030a'], [0.3, '#090b24'], [0.46, '#22154e'], [0.53, '#7a3284'], [0.57, '#2a1848'], [0.7, '#0c0c22'], [1, '#04040c']]
-                     : [[0, '#1b66c9'], [0.28, '#4f9de6'], [0.46, '#a9d4f5'], [0.525, '#fff0d6'], [0.57, '#c2dbee'], [0.75, '#8fb0cf'], [1, '#6f8fae']];
-    for (const q of st) gr.addColorStop(q[0], q[1]);
+    for (const q of th.sky) gr.addColorStop(q[0], q[1]);
     g.fillStyle = gr; g.fillRect(0, 0, s, s);
   });
   skyTex.wrapS = skyTex.wrapT = THREE.ClampToEdgeWrapping;
   fx.sky = new THREE.Mesh(new THREE.SphereGeometry(1000, 24, 16), new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false, depthWrite: false }));
   world.add(fx.sky);
-  // sun (or moon) with a soft halo, riding on the sky dome
-  const orbSprite = (col, size, op) => {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: col, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-    sp.position.copy(SUNDIR).multiplyScalar(880); sp.scale.setScalar(size); fx.sky.add(sp);
-  };
-  if (!L.indoor) {
-    if (night) { orbSprite(0x8fa8ff, 300, 0.45); orbSprite(0xeef3ff, 70, 1); }
-    else { orbSprite(0xfff1c4, 560, 0.6); orbSprite(0xffffff, 130, 1); }
+  const open = !L.indoor || th.space;                         // can you see outside?
+  if (open) {
+    for (const o of th.orbs) {                                // sun / moon with a soft halo, riding on the sky dome
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: o[0], transparent: true, opacity: o[2], blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+      sp.position.copy(SUNDIR).multiplyScalar(880); sp.scale.setScalar(o[1]); fx.sky.add(sp);
+    }
+    if (th.space) {                                           // a planet hanging below the station
+      const pl = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.planet, transparent: true, depthWrite: false, fog: false }));
+      pl.position.set(-0.5, -0.42, -0.76).multiplyScalar(860); pl.scale.setScalar(640); fx.sky.add(pl);
+    }
   }
-  const fogCol = night ? 0x1c1438 : 0xcfe6fa;
-  scene.fog = L.indoor ? null : new THREE.Fog(fogCol, 120, 600);
-  renderer.setClearColor(fogCol);
-  hemi.color.set(night ? 0x8a94ff : 0xdfeeff); hemi.groundColor.set(night ? 0x2a1c44 : 0x6f7480); hemi.intensity = night ? 0.6 : 0.74;
-  sun.color.set(night ? 0x9ab0ff : 0xfff4e0); sun.intensity = night ? 0.4 : 0.95;
-  if (L.indoor) { sun.intensity = night ? 0.25 : 0.38; hemi.intensity = night ? 0.6 : 0.68; }   // rooms are lit softly so pale walls do not blow out
+  scene.fog = L.indoor || !th.fog ? null : new THREE.Fog(th.fog[0], th.fog[1], th.fog[2]);
+  renderer.setClearColor(th.fog ? th.fog[0] : 0x000004);
+  hemi.color.set(th.hemi[0]); hemi.groundColor.set(th.hemi[1]); hemi.intensity = th.hemi[2];
+  sun.color.set(th.sun[0]); sun.intensity = th.sun[1];
+  if (L.indoor) { sun.intensity = night ? 0.3 : 0.38; hemi.intensity = night ? 0.66 : 0.68; }   // rooms are lit softly so pale walls do not blow out
   fx.stars = null;
-  if (night) {
-    const r = rng(77), pos = new Float32Array(600 * 3);
-    for (let n = 0; n < 600; n++) {
-      const u = r() * 2 - 1, th = r() * 6.283, q = Math.sqrt(1 - u * u);
-      pos[n * 3] = 900 * q * Math.cos(th); pos[n * 3 + 1] = 900 * u; pos[n * 3 + 2] = 900 * q * Math.sin(th);
+  if (th.stars) {
+    const r = rng(77), cnt = th.space ? 1500 : 600, pos = new Float32Array(cnt * 3);
+    for (let n = 0; n < cnt; n++) {
+      const u = r() * 2 - 1, an = r() * 6.283, q = Math.sqrt(1 - u * u);
+      pos[n * 3] = 900 * q * Math.cos(an); pos[n * 3 + 1] = 900 * u; pos[n * 3 + 2] = 900 * q * Math.sin(an);
     }
     fx.stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(pos, 3)),
       new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, fog: false }));
     world.add(fx.stars);
   }
-  // far skyline (decoration only: no collisions, cannot be flipped onto) + cloud layer
-  if (!L.indoor) {
-    const r = rng(100 + i * 7);
-    for (let n = 0; n < 44; n++) {
-      const x = B.mn[0] - 170 + r() * (B.mx[0] - B.mn[0] + 340), z = B.mn[2] - 170 + r() * (B.mx[2] - B.mn[2] + 340);
-      const w = 14 + r() * 18, d = 14 + r() * 18, top = -15 + r() * 100;
-      if (x + w > B.mn[0] - 30 && x - w < B.mx[0] + 30 && z + d > B.mn[2] - 30 && z - d < B.mx[2] + 30) continue;
-      world.add(boxMesh({ mn: [x - w / 2, -90, z - d / 2], mx: [x + w / 2, top, z + d / 2] }, MAT.deco[n % 3], 24));
+  // scenery (decoration only: no collisions, cannot be flipped onto)
+  if (open) {
+    const r = rng(100 + i * 7), cx = (B.mn[0] + B.mx[0]) / 2, cy = (B.mn[1] + B.mx[1]) / 2, cz = (B.mn[2] + B.mx[2]) / 2;
+    if (th.space) {
+      for (let n = 0; n < 34; n++) {                          // drifting station modules all around
+        const u = r() * 2 - 1, an = r() * 6.283, q = Math.sqrt(1 - u * u), d = 170 + r() * 260;
+        const x = cx + q * Math.cos(an) * d, y = cy + u * d, z = cz + q * Math.sin(an) * d, w = 6 + r() * 16, h = 6 + r() * 30, dp = 6 + r() * 16;
+        world.add(boxMesh({ mn: [x - w, y - h, z - dp], mx: [x + w, y + h, z + dp] }, n % 3 ? MAT.panel : MAT.deco[n % 3], n % 3 ? 8 : 24));
+      }
+    } else {
+      for (let n = 0; n < 44; n++) {                          // far skyline
+        const x = B.mn[0] - 170 + r() * (B.mx[0] - B.mn[0] + 340), z = B.mn[2] - 170 + r() * (B.mx[2] - B.mn[2] + 340);
+        const w = 14 + r() * 18, d = 14 + r() * 18, top = -15 + r() * 100;
+        if (x + w > B.mn[0] - 30 && x - w < B.mx[0] + 30 && z + d > B.mn[2] - 30 && z - d < B.mx[2] + 30) continue;
+        world.add(boxMesh({ mn: [x - w / 2, -90, z - d / 2], mx: [x + w / 2, top, z + d / 2] }, MAT.deco[n % 3], 24));
+      }
     }
-    // sea of cloud far below, and drifting clouds around the city
-    const seaY = Math.min(B.mn[1] - 8, -38);
-    const cl = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshBasicMaterial({ color: night ? 0x1d1740 : 0xeaf4fd, transparent: true, opacity: night ? 0.8 : 0.78, depthWrite: false }));
-    cl.rotation.x = -Math.PI / 2; cl.position.y = seaY;
-    fx.sea = TEX.cloud.clone(); fx.sea.needsUpdate = true; fx.sea.repeat.set(9, 9);
-    const puffs = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshBasicMaterial({ map: fx.sea, color: night ? 0x4a3f8a : 0xffffff, transparent: true, opacity: night ? 0.5 : 0.95, depthWrite: false }));
-    puffs.rotation.x = -Math.PI / 2; puffs.position.y = seaY + 3;
-    world.add(cl, puffs);
-    fx.clouds = new THREE.Group();
-    const cx = (B.mn[0] + B.mx[0]) / 2, cz = (B.mn[2] + B.mx[2]) / 2;
-    for (let n = 0, cnt = hq ? 20 : 10; n < cnt; n++) {
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.cloud, color: night ? 0x3d3470 : 0xffffff, transparent: true, opacity: night ? 0.45 : 0.9, depthWrite: false, fog: false }));
-      const an = r() * 6.283, rad = 200 + r() * 520, w = 170 + r() * 220;
-      sp.position.set(cx + Math.cos(an) * rad, 30 + r() * 230, cz + Math.sin(an) * rad); sp.scale.set(w, w * 0.5, 1);
-      fx.clouds.add(sp);
+    if (th.sea) {                                             // sea of cloud (or molten metal) far below
+      const seaY = Math.min(B.mn[1] - 8, -38);
+      const cl = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshBasicMaterial({ color: th.sea[0], transparent: true, opacity: th.sea[1], depthWrite: false }));
+      cl.rotation.x = -Math.PI / 2; cl.position.y = seaY;
+      fx.sea = TEX.cloud.clone(); fx.sea.needsUpdate = true; fx.sea.repeat.set(9, 9);
+      const puffs = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshBasicMaterial({ map: fx.sea, color: th.sea[2], transparent: true, opacity: th.sea[3], depthWrite: false }));
+      puffs.rotation.x = -Math.PI / 2; puffs.position.y = seaY + 3;
+      world.add(cl, puffs);
     }
-    world.add(fx.clouds);
+    if (th.cloud) {                                           // drifting clouds (or smoke)
+      fx.clouds = new THREE.Group();
+      for (let n = 0, cnt = hq ? 20 : 10; n < cnt; n++) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.cloud, color: th.cloud[0], transparent: true, opacity: th.cloud[1], depthWrite: false, fog: false }));
+        const an = r() * 6.283, rad = 200 + r() * 520, w = 170 + r() * 220;
+        sp.position.set(cx + Math.cos(an) * rad, 30 + r() * 230, cz + Math.sin(an) * rad); sp.scale.set(w, w * 0.5, 1);
+        fx.clouds.add(sp);
+      }
+      world.add(fx.clouds);
+    }
   }
   // solid boxes
   S.statics.forEach((b, n) => {
@@ -1416,7 +1740,7 @@ function buildLevel(i, keep) {          // keep = only rebuild the meshes (used 
     const m = b.type === 'bldg' ? boxMesh(b, MAT.bldg[n % 3], 24) : boxMesh(b, MAT[b.type] || MAT.block, b.type === 'block' ? 4 : 8);
     m.castShadow = m.receiveShadow = true;
     // crisp outlines by day, neon trim by night
-    const e = edgeBox(b, night ? (b.type === 'bldg' ? NEON[n % 3] : 0x6f8cff) : 0x0c1118);
+    const e = edgeBox(b, th.trim && b.type === 'bldg' ? th.trim[n % 3] : th.edge);
     e.material.opacity = night ? 0.65 : 0.3;
     world.add(m, e);
   });
@@ -1477,6 +1801,37 @@ function buildLevel(i, keep) {          // keep = only rebuild the meshes (used 
       }
     }
   }
+  // patrol drones: dark ball, red ring, red dotted patrol path
+  for (const d of S.drones) {
+    d.mesh = new THREE.Group();
+    d.mesh.add(new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 10), new THREE.MeshPhongMaterial({ color: 0x191c23, specular: 0xff6060, shininess: 70 })));
+    d.ring = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.05, 6, 22), new THREE.MeshBasicMaterial({ color: 0xff4040 }));
+    const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xff3020, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+    gl.scale.setScalar(2.6); d.mesh.add(d.ring, gl); world.add(d.mesh);
+    if (!d.still) {
+      const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(d.a[0], d.a[1], d.a[2]), new THREE.Vector3(d.b[0], d.b[1], d.b[2])]),
+        new THREE.LineDashedMaterial({ color: 0xff5a5a, dashSize: 0.35, gapSize: 0.35, transparent: true, opacity: 0.75 }));
+      ln.computeLineDistances(); world.add(ln);
+    }
+  }
+  // hidden gem
+  fx.gem = null;
+  if (S.gem) {
+    fx.gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.42), new THREE.MeshPhongMaterial({ color: 0x40ffe0, emissive: 0x109080, specular: 0xffffff, shininess: 120, flatShading: true, transparent: true }));
+    fx.gem.position.set(L.gem[0], L.gem[1], L.gem[2]);
+    const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0x40ffe0, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }));
+    gl.scale.setScalar(2.4); fx.gem.add(gl); world.add(fx.gem);
+  }
+  // checkpoints: a flag on a ring, blue until reached, then green
+  S.cps.forEach((c, n) => {
+    const g = new THREE.Group();
+    g.position.set(c.p[0], c.p[1], c.p[2]); g.quaternion.copy(dirQuat(c.g[0], -c.g[1]));
+    c.mat = new THREE.MeshBasicMaterial({ color: n <= S.cpIdx ? 0x43ff7a : 0x4aa8ff });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.06, 6, 28).rotateX(Math.PI / 2), c.mat); ring.position.y = -0.76;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 6), c.mat); pole.position.set(0.9, 0.35, 0);
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.42, 0.04), c.mat); flag.position.set(0.52, 1.25, 0);
+    g.add(ring, pole, flag); world.add(g);
+  });
   // beacon
   const bn = L.bn || [1, 1], bg = new THREE.Group();
   bg.position.set(L.beacon[0], L.beacon[1], L.beacon[2]); bg.quaternion.copy(dirQuat(bn[0], bn[1]));
@@ -1506,6 +1861,11 @@ function resetLevel() {
   for (const d of S.doors) d.open = false;
   for (const b of S.buttons) b.on = false;
   S.rec = []; S.recT = 0; S.beaconDist = 99;
+  S.clock = 0; S.focus = false; S.cpIdx = -1;
+  camDist = CFG.CAM_DIST;
+  for (const c of S.cps) { c.snap = null; if (c.mat) c.mat.color.setHex(0x4aa8ff); }
+  if (S.gem) S.gem.got = !!save.gems[S.li];
+  stepDrones();
   S.ghost = opts.ghost ? loadGhost(S.li) : null;
   S.mode = 'play';
 }
@@ -1601,6 +1961,9 @@ function updateView(dt) {
   }
   // moving things
   for (const c of S.crates) c.mesh.position.set(c.p[0], c.p[1], c.p[2]);
+  const tn = performance.now() / 1000;
+  for (const d of S.drones) { d.mesh.position.set(d.p[0], d.p[1], d.p[2]); d.ring.rotation.set(tn * 3, tn * 2.2, 0); }
+  if (fx.gem) { fx.gem.rotation.y = tn * 2; fx.gem.material.opacity = S.gem.got ? 0.2 : 1; fx.gem.children[0].visible = !S.gem.got; }
   for (const p of S.plats) p.mesh.position.set(p.p[0], p.p[1], p.p[2]);
   for (const b of S.buttons) b.mesh.material.color.setHex(b.on ? 0x43ff7a : 0xff7a1a);
   for (const d of S.doors) d.mesh.material.opacity = d.open ? 0.06 : 0.62;
@@ -1700,7 +2063,7 @@ function die(msg) {
 function win() {
   if (S.mode !== 'play') return;
   S.mode = 'win'; S.winT = 0; S.timeScale = 0.2;             // short slow-motion at the beacon
-  S.finalTime = S.t;
+  S.finalTime = S.clock;
   sfx.win();
   burst(S.L.beacon, 90, 0xffd24a, 10, 1.5);
 }
@@ -1721,6 +2084,7 @@ function finishLevel() {
   $('cFlips').textContent = S.flips; $('cFlipPar').textContent = '(par ' + L.par.flips + ')';
   $('cBest').textContent = isBest ? (oldBest == null ? 'First clear - ghost saved!' : 'New best! (was ' + oldBest.toFixed(2) + ' s) - ghost saved')
                                   : 'Best: ' + oldBest.toFixed(2) + ' s';
+  if (S.gem) $('cBest').textContent += S.gem.got ? '   \u25C6 gem found' : '   \u25C7 gem still hidden';
   const next = i + 1 < LEVELS.length && unlocked(i + 1);
   $('bNext').style.display = next ? '' : 'none';
   showScreen('complete');
@@ -1730,20 +2094,22 @@ function finishLevel() {
 //  SAVE DATA + OPTIONS (localStorage, always wrapped in try/catch)
 // =====================================================================
 const $ = id => document.getElementById(id);
-const save = { stars: [], best: [] };
-const opts = { sky: 'auto', ghost: true, mute: false, tips: true, gfx: 'auto' };
+const save = { stars: [], best: [], gems: [] };
+const opts = { sky: 'auto', ghost: true, mute: false, tips: true, gfx: 'auto', suit: 0, slow: 0.45 };
 try {
   const s = JSON.parse(localStorage.getItem('gfc_save') || 'null');
   if (s) {
     if (Array.isArray(s.stars)) save.stars = s.stars;
     if (Array.isArray(s.best)) save.best = s.best;
+    if (Array.isArray(s.gems)) save.gems = s.gems;
     if (s.opts) for (const k in opts) if (typeof s.opts[k] === typeof opts[k]) opts[k] = s.opts[k];
   }
 } catch (e) { /* no storage: play without saving */ }
-function persist() { try { localStorage.setItem('gfc_save', JSON.stringify({ stars: save.stars, best: save.best, opts: opts })); } catch (e) { /* ignore */ } }
+function persist() { try { localStorage.setItem('gfc_save', JSON.stringify({ stars: save.stars, best: save.best, gems: save.gems, opts: opts })); } catch (e) { /* ignore */ } }
 function totalStars() { return save.stars.reduce((a, b) => a + (b || 0), 0); }
 let dbgOn = false;
-function needStars(i) { return i < 6 ? 0 : i < 10 ? CFG.LOCK_STARS : CFG.LOCK_STARS_2; }
+function gemCount() { return save.gems.reduce((a, b) => a + (b ? 1 : 0), 0); }
+function needStars(i) { let n = 0; for (const w of WORLDS) { n += w.n; if (i < n) return w.need; } return 0; }   // worlds unlock with stars
 function unlocked(i) { return dbgOn || totalStars() >= needStars(i); }               // star locks: levels 7+ and 11+
 
 // =====================================================================
@@ -1785,13 +2151,15 @@ const sfx = {
   win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, f, 0.4, 'triangle', 0.11, i * 0.12)); },
   button(on) { tone(on ? 500 : 300, on ? 800 : 200, 0.12, 'square', 0.06); },
   door(open) { tone(open ? 200 : 600, open ? 600 : 200, 0.3, 'sine', 0.07); },
-  zone() { tone(660, 330, 0.2, 'sine', 0.05); }
+  zone() { tone(660, 330, 0.2, 'sine', 0.05); },
+  gem() { [880, 1175, 1568, 2093].forEach((f, i) => tone(f, f, 0.25, 'sine', 0.09, i * 0.07)); },
+  checkpoint() { tone(523, 523, 0.15, 'triangle', 0.09); tone(784, 784, 0.25, 'triangle', 0.09, 0.12); }
 };
 
 // =====================================================================
 //  SCREENS + HUD
 // =====================================================================
-const SCREENS = ['title', 'levels', 'controls', 'pause', 'complete'];
+const SCREENS = ['title', 'levels', 'controls', 'suits', 'pause', 'complete'];
 function showScreen(name) {
   for (const s of SCREENS) $(s).classList.toggle('on', s === name);
   $('hud').classList.toggle('on', !name);
@@ -1808,21 +2176,43 @@ function optLabels() {
   $('bGhost').textContent = 'Speedrun ghost: ' + (opts.ghost ? 'On' : 'Off');
   $('bMute').textContent = 'Sound: ' + (opts.mute ? 'Off' : 'On');
   $('bGfx').textContent = 'Graphics: ' + { auto: 'Auto', high: 'High', low: 'Low' }[opts.gfx];
+  $('bSlow').textContent = 'Air slow-mo: ' + (SLOWS.find(q => q[0] === opts.slow) || SLOWS[1])[1];
 }
+const SLOWS = [[0.6, 'Light'], [0.45, 'Medium'], [0.3, 'Strong'], [1, 'Off']];     // game speed while aiming in the air
 function buildGrid() {
   const g = $('grid'); g.innerHTML = '';
   const tot = totalStars();
-  $('starTotal').textContent = '★ ' + tot + ' / ' + LEVELS.length * 3 +
-    (tot < CFG.LOCK_STARS ? '   -   levels 7+ unlock at ' + CFG.LOCK_STARS + ' stars' : tot < CFG.LOCK_STARS_2 ? '   -   levels 11+ unlock at ' + CFG.LOCK_STARS_2 + ' stars' : '');
-  LEVELS.forEach((L, i) => {
-    const c = document.createElement('div'), ok = unlocked(i), st = save.stars[i] || 0;
-    c.className = 'card' + (ok ? '' : ' locked');
-    c.innerHTML = '<div class="n">' + (ok ? i + 1 : '🔒') + '</div><div class="t"></div><div class="s"></div><div class="b"></div>';
-    c.children[1].textContent = L.name;
-    c.children[2].textContent = ok ? '★'.repeat(st) + '☆'.repeat(3 - st) : '';
-    c.children[3].textContent = ok ? (save.best[i] != null ? 'Best ' + save.best[i].toFixed(2) + ' s' : 'Not cleared') : 'Need ' + needStars(i) + ' stars';
-    if (ok) c.onclick = () => startLevel(i); else c.onclick = () => sfx.deny();
-    g.appendChild(c);
+  $('starTotal').textContent = '\u2605 ' + tot + ' / ' + LEVELS.length * 3 + '      \u25C6 ' + gemCount() + ' / ' + LEVELS.length + ' gems';
+  let i = 0;
+  WORLDS.forEach((w, wi) => {
+    const open = dbgOn || tot >= w.need, h = document.createElement('div'), row = document.createElement('div');
+    h.className = 'wh' + (open ? '' : ' locked'); row.className = 'wg';
+    h.textContent = 'World ' + (wi + 1) + '  \u00B7  ' + w.name + (open ? '' : '   \uD83D\uDD12 needs ' + w.need + ' stars');
+    g.appendChild(h); g.appendChild(row);
+    for (let k = 0; k < w.n; k++, i++) {
+      const n = i, L = LEVELS[n], c = document.createElement('div'), st = save.stars[n] || 0;
+      c.className = 'card' + (open ? '' : ' locked');
+      c.innerHTML = '<div class="n">' + (open ? n + 1 : '\uD83D\uDD12') + '</div><div class="t"></div><div class="s"></div><div class="b"></div>';
+      c.children[1].textContent = L.name;
+      c.children[2].textContent = open ? '\u2605'.repeat(st) + '\u2606'.repeat(3 - st) + (save.gems[n] ? ' \u25C6' : ' \u25C7') : '';
+      c.children[3].textContent = open ? (save.best[n] != null ? 'Best ' + save.best[n].toFixed(2) + ' s' : 'Not cleared') : '';
+      c.onclick = open ? () => startLevel(n) : () => sfx.deny();
+      row.appendChild(c);
+    }
+  });
+}
+function buildSuits() {
+  const g = $('suitGrid'), gems = gemCount(); g.innerHTML = '';
+  $('suitInfo').textContent = '\u25C6 ' + gems + ' gems found  -  every level hides one, and gems unlock suit colours';
+  SUITS.forEach((su, i) => {
+    const b = document.createElement('button'), ok = dbgOn || gems >= su.need;
+    b.className = 'sw' + (ok ? '' : ' locked') + (opts.suit === i ? ' sel' : '');
+    b.style.background = '#' + su.col.toString(16).padStart(6, '0');
+    b.innerHTML = '<span></span><small></small>';
+    b.children[0].textContent = su.name;
+    b.children[1].textContent = ok ? (opts.suit === i ? 'wearing' : 'tap to wear') : '\uD83D\uDD12 ' + su.need + ' gems';
+    b.onclick = () => { if (!ok) { sfx.deny(); return; } opts.suit = i; persist(); setSuit(i); buildSuits(); };
+    g.appendChild(b);
   });
 }
 function setTip() {
@@ -1852,6 +2242,8 @@ function cycleSky() {
 $('bPlay').onclick = () => { let i = 0; while (i < LEVELS.length - 1 && save.stars[i] && unlocked(i + 1)) i++; startLevel(i); };
 $('bLevels').onclick = () => toMenu('levels');
 $('bControls').onclick = () => showScreen('controls');
+$('bSuits').onclick = () => { buildSuits(); showScreen('suits'); };
+$('bSlow').onclick = () => { opts.slow = SLOWS[(SLOWS.findIndex(q => q[0] === opts.slow) + 1) % SLOWS.length][0]; persist(); optLabels(); };
 $('bSky').onclick = cycleSky;
 $('bGhost').onclick = () => { opts.ghost = !opts.ghost; persist(); optLabels(); };
 $('bMute').onclick = () => { opts.mute = !opts.mute; persist(); optLabels(); };
@@ -1874,12 +2266,15 @@ const AXN = ['X', 'Y', 'Z'];
 function f2(v) { return (v < 0 ? '' : ' ') + v.toFixed(2); }
 function updateHud() {
   const P = S.player, L = S.L, g = S.grav, aim = S.aim;
-  const t = S.mode === 'win' || S.mode === 'done' ? S.finalTime : S.t;
+  const t = S.mode === 'win' || S.mode === 'done' ? S.finalTime : S.clock;
   setText('hTime', t.toFixed(1));
   setText('hSplit', save.best[S.li] != null ? '(best ' + save.best[S.li].toFixed(1) + ')' : '');
   setText('hFlips', L.limit ? S.flips + ' / ' + L.limit : S.flips + '  (par ' + L.par.flips + ')');
   setText('hDeaths', String(S.deaths));
   setText('hDist', S.beaconDist.toFixed(0));
+  setText('hGem', S.gem ? (S.gem.got ? '\u25C6 found' : '\u25C7 hidden') : '-');
+  const fo = S.focus && !P.grounded && S.mode === 'play';
+  if (hudCache.focus !== fo) { hudCache.focus = fo; $('focus').classList.toggle('on', fo); }
   const fall = Math.max(0, P.v[g.a] * g.s) / CFG.V_DEATH, fill = $('speedFill');
   fill.style.width = Math.min(100, fall * 100).toFixed(0) + '%';
   fill.style.background = fall >= 1 ? '#ff5468' : fall >= 0.7 ? '#ffd24a' : '#5dfc9a';
@@ -1914,18 +2309,19 @@ function updateHud() {
 // =====================================================================
 //  INPUT
 // =====================================================================
-let dragging = false, dragMoved = 0, wasLocked = false;
+let dragging = false, dragMoved = 0, wasLocked = false, lockedAt = 0, skipMove = false;
 function grabMouse() {
   if (!canvas.requestPointerLock) return;
   try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { /* fallback: click-and-drag */ }); } catch (e) { /* ignore */ }
 }
 canvas.addEventListener('mousedown', e => {
   if (S.mode !== 'play') return;
-  if (document.pointerLockElement === canvas) { if (e.button === 0) tryFlip(); return; }
+  if (document.pointerLockElement === canvas) { if (e.button === 0) flipPress(); return; }
   dragging = true; dragMoved = 0;
   grabMouse();
 });
 window.addEventListener('mouseup', e => {
+  if (e.button === 0) flipRelease();
   if (!dragging) return;
   dragging = false;
   // drag fallback: a click without dragging is a flip
@@ -1935,14 +2331,16 @@ window.addEventListener('mousemove', e => {
   if (S.mode !== 'play') return;
   const locked = document.pointerLockElement === canvas;
   if (!locked && !dragging) return;
-  const dx = e.movementX || 0, dy = e.movementY || 0;
+  // browsers can report one huge jump right after capturing the mouse: drop the first move and anything in the first moments
+  if (locked && (skipMove || performance.now() - lockedAt < 150)) { skipMove = false; return; }
+  const dx = Math.max(-200, Math.min(200, e.movementX || 0)), dy = Math.max(-200, Math.min(200, e.movementY || 0));
   if (!locked) dragMoved += Math.abs(dx) + Math.abs(dy);
   S.yaw -= dx * 0.0024;
   S.pitch = Math.max(-1.45, Math.min(1.45, S.pitch - dy * 0.0024));
 });
 document.addEventListener('pointerlockchange', () => {
   const locked = document.pointerLockElement === canvas;
-  if (locked) wasLocked = true;
+  if (locked) { wasLocked = true; lockedAt = performance.now(); skipMove = true; }
   else if (wasLocked && S.mode === 'play') pauseGame();        // Esc releases the mouse -> pause
 });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -1953,7 +2351,7 @@ window.addEventListener('keydown', e => {
   if (e.repeat) return;
   const inGame = S.mode === 'play' || S.mode === 'dead';
   switch (e.code) {
-    case 'KeyE': tryFlip(); break;
+    case 'KeyE': flipPress(); break;
     case 'KeyQ': undoFlip(); break;
     case 'KeyR': if (inGame) restartLevel(); break;
     case 'KeyH': toggleTips(); break;
@@ -1968,7 +2366,7 @@ window.addEventListener('keydown', e => {
     case 'BracketRight': if (dbgOn && inGame) startLevel((S.li + 1) % LEVELS.length); break;
   }
 });
-window.addEventListener('keyup', e => { if (KEYMAP[e.code]) K[KEYMAP[e.code]] = false; });
+window.addEventListener('keyup', e => { if (KEYMAP[e.code]) K[KEYMAP[e.code]] = false; else if (e.code === 'KeyE') flipRelease(); });
 window.addEventListener('blur', () => { for (const k in K) K[k] = k === 'ax' || k === 'az' ? 0 : false; if (S.mode === 'play' && wasLocked) pauseGame(); });
 
 // =====================================================================
@@ -2041,7 +2439,7 @@ function touchButton(id, down, up) {
   const end = e => { if (e.cancelable) e.preventDefault(); b.classList.remove('dn'); if (up) up(); };
   b.addEventListener('touchend', end); b.addEventListener('touchcancel', end);
 }
-touchButton('tFlip', tryFlip);
+touchButton('tFlip', flipPress, flipRelease);
 touchButton('tUndo', undoFlip);
 touchButton('tJump', () => { K.jump = true; }, () => { K.jump = false; });
 touchButton('tPause', pauseGame);
@@ -2060,13 +2458,17 @@ let lastT = 0, acc = 0;
 function advance(dt) {
   const m = S.mode;
   if (m === 'play' || m === 'win' || m === 'dead') {
+    if (m === 'play') {
+      S.clock += dt;                                          // the level timer runs in real time, even in slow motion
+      S.timeScale = S.focus && !S.player.grounded ? opts.slow : 1;
+    }
     acc += dt * S.timeScale;
     let n = 0;
     while (acc >= CFG.STEP && n < 12) { tick(CFG.STEP); acc -= CFG.STEP; n++; }   // fixed physics steps
     if (n === 12) acc = 0;
     if (S.mode === 'dead') {
       S.deadT += dt;
-      if (S.deadT > 1.1) { $('dead').classList.remove('on'); resetLevel(); }
+      if (S.deadT > 1.1) { $('dead').classList.remove('on'); if (S.cpIdx >= 0) respawnCheckpoint(); else resetLevel(); }
     } else if (S.mode === 'win') {
       S.winT += dt;
       if (S.winT > 1.3) finishLevel();
@@ -2094,9 +2496,11 @@ function frame(now) {
 
 // ---------- boot ----------
 resize(); optLabels();
+if (!SUITS[opts.suit] || gemCount() < SUITS[opts.suit].need) opts.suit = 0;
+setSuit(opts.suit);
 buildLevel(0); resetLevel(); S.mode = 'title';
 // handy from the browser console while designing levels
-window.GF = { camera: camera, S: S, CFG: CFG, LEVELS: LEVELS, K: K, save: save, opts: opts, tick: tick, advance: advance, updateView: updateView,
+window.GF = { camera: camera, S: S, CFG: CFG, LEVELS: LEVELS, WORLDS: WORLDS, SUITS: SUITS, K: K, save: save, opts: opts, tick: tick, advance: advance, updateView: updateView,
   loadLevel: loadLevel, startLevel: startLevel, tryFlip: tryFlip, undoFlip: undoFlip, resetLevel: resetLevel };
 requestAnimationFrame(frame);
 </script>
