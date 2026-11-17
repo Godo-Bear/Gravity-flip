@@ -35,6 +35,10 @@
   .sw small { font-weight:600; font-size:11px; }
   .sw.sel { border-color:#fff; box-shadow:0 0 18px rgba(255,255,255,.6); }
   .sw.locked { opacity:.4; cursor:not-allowed; }
+  #hintBox { position:absolute; right:14px; top:160px; max-width:300px; background:var(--panel); border-left:4px solid #ffd24a; border-radius:8px; padding:8px 12px;
+    font-size:13px; line-height:1.4; display:none; max-height:44vh; overflow:hidden; }
+  #hintBox b { color:#ffd24a; }
+  body.touch #hintBox { top:108px; max-width:36vw; font-size:11px; padding:5px 8px; }
   #focus { position:absolute; inset:0; opacity:0; transition:opacity .15s; background:radial-gradient(ellipse at center, rgba(60,170,255,0) 40%, rgba(60,170,255,.34) 100%); }
   #focus.on { opacity:1; }
   #focus::after { content:"SLOW-MO  -  let go to flip"; position:absolute; left:50%; top:62%; transform:translateX(-50%); font-size:13px; font-weight:800; letter-spacing:2px; color:#bfe6ff; text-shadow:0 1px 4px #000; white-space:nowrap; }
@@ -129,19 +133,21 @@
     <div>Deaths <b id="hDeaths">0</b></div>
     <div>Beacon <b id="hDist">0</b> m</div>
     <div>Gem <b id="hGem"></b></div>
+    <div>Coins <b id="hCoins"></b></div>
   </div>
   <div id="gravBox"></div><div id="gravLbl">GRAVITY</div>
   <div id="cross"></div><div id="aimTxt"></div>
   <div id="zoneTxt"></div>
   <div id="toast"></div>
   <div id="tip"></div>
+  <div id="hintBox"></div>
   <div id="speedWrap"><div id="speedLbl">FALL SPEED</div><div id="speedBar"><div id="speedFill"></div></div></div>
   <div id="touchUI">
     <div id="stick"><div id="knob"></div></div>
     <button class="tb" id="tFlip">FLIP</button>
     <button class="tb" id="tJump">JUMP</button>
     <button class="tb" id="tUndo">UNDO</button>
-    <div id="tTop"><button class="tb" id="tPause">II</button><button class="tb" id="tRestart">&#8635;</button><button class="tb" id="tTip">?</button></div>
+    <div id="tTop"><button class="tb" id="tPause">II</button><button class="tb" id="tRestart">&#8635;</button><button class="tb" id="tTip">?</button><button class="tb" id="tHint">&#128161;</button></div>
   </div>
 </div>
 <div id="rotate">Turn your phone sideways for a wider view</div>
@@ -195,6 +201,8 @@
       <tr class="tc"><td>Hold FLIP in mid-air</td><td>Slow motion while you aim - let go to flip</td></tr>
       <tr class="kb"><td>Q</td><td>Undo the last flip (counts as a flip)</td></tr>
       <tr class="kb"><td>R</td><td>Restart level</td></tr>
+      <tr class="kb"><td>B</td><td>Buy a hint with coins (also on the pause screen)</td></tr>
+      <tr class="tc"><td>&#128161;</td><td>Buy a hint with coins</td></tr>
       <tr class="kb"><td>H</td><td>Show / hide tips</td></tr>
       <tr class="kb"><td>N</td><td>Switch sky: auto / day / night</td></tr>
       <tr class="kb"><td>M</td><td>Mute sounds</td></tr>
@@ -210,6 +218,7 @@
 <div id="pause" class="screen">
   <h2>Paused</h2>
   <button class="btn" id="bResume">Resume</button>
+  <button class="btn alt" id="bHint"></button>
   <button class="btn alt" id="bRestart">Restart Level</button>
   <button class="btn alt" id="bPLevels">Level Select</button>
   <button class="btn alt" id="bPTitle">Main Menu</button>
@@ -268,6 +277,7 @@ const CFG = {
    cps     : {p:[x,y,z] respawn point, g:[axis,sign] gravity you must be standing in to trigger it}
    gem     : [x,y,z] hidden gem (walk within 1.4 m)
    theme   : 'foundry' | 'orbit' (otherwise day/night city)
+   hints   : solution steps, bought one at a time with coins
    plats   : {h:[half-size], a:[x,y,z], b:[x,y,z], T:seconds for a full there-and-back}
    zones   : {t:'noflip', b:[box]}  or  {t:'lock', g:[axis,sign], b:[box]}
    spawn/beacon are player-centre positions; bn = [axis,sign] normal of the beacon's surface
@@ -278,7 +288,7 @@ const LEVELS = [
   /* 1. UP THE WALL
      Solution (1 flip): from spawn (0,0.8,2) aim at the tower face z=-12 and flip -> gravity -z.
      Fall 13.2 m (safe), land at (0,0.8,-11.2). Walk "up" the wall (+y) to the beacon at y=26. */
-  { name: 'Up the Wall', gem: [17, 15, -9.2], tip: 'Aim at the tall tower in front of you and press E. Then walk up it to the beacon.',
+  { name: 'Up the Wall', hints: ["Aim at the tall tower straight ahead and flip.", "Walk up the tower wall to the beacon near the top."], gem: [17, 15, -9.2], tip: 'Aim at the tall tower in front of you and press E. Then walk up it to the beacon.',
     par: { flips: 1, time: 20 }, spawn: [0, 0.8, 2], yaw: 0, beacon: [0, 26, -11.2], bn: [2, 1],
     bounds: [-60, -20, -60, 60, 70, 50],
     boxes: [
@@ -292,7 +302,7 @@ const LEVELS = [
      Solution (2 flips): on roof A (y=20) aim up at the underside of the sky-bridge (y=34), flip -> +y,
      fall up 12.4 m. Walk along the underside to z=-50. Aim at roof B (y=20), flip -> -y, fall 12.4 m,
      land next to the beacon at (0,20.8,-50). Flipping straight at building B's wall is a 37 m fall = fatal. */
-  { name: 'Upside Down', gem: [2.4, 33.2, -53.3], tip: 'Look up! The underside of the sky-bridge is a floor too. Cross the gap on it.',
+  { name: 'Upside Down', hints: ["Look up: flip onto the underside of the sky-bridge.", "Walk along it until you are above the far roof.", "Aim at that roof and flip back down."], gem: [2.4, 33.2, -53.3], tip: 'Look up! The underside of the sky-bridge is a floor too. Cross the gap on it.',
     par: { flips: 2, time: 30 }, spawn: [0, 20.8, 2], yaw: 0, beacon: [0, 20.8, -50], bn: [1, 1],
     bounds: [-50, -25, -90, 50, 75, 40],
     boxes: [
@@ -308,7 +318,7 @@ const LEVELS = [
           flip -> +x, fall 14.4 m.
        3. walk to z=-58 (L2 spans z -104..-54), aim L2 (face x=-8), flip -> -x, fall 14.4 m.
        4. walk to z=-94, aim the far street (top y=0), flip -> -y, walk to the beacon at (0,0.8,-94). */
-  { name: 'Canyon Run', gem: [7.2, 18, -40], tip: 'The street is gone. Hop wall to wall - but you only get 4 flips.',
+  { name: 'Canyon Run', hints: ["Flip onto the left wall and walk along it.", "Near its end, flip across to the right wall.", "Near that wall's end, flip back to the next left wall.", "When you are beside the far street, flip down."], gem: [7.2, 18, -40], tip: 'The street is gone. Hop wall to wall - but you only get 4 flips.',
     par: { flips: 4, time: 45 }, limit: 4, night: true, spawn: [0, 0.8, 4], yaw: 0, beacon: [0, 0.8, -94], bn: [1, 1],
     bounds: [-40, -30, -125, 40, 60, 30],
     boxes: [
@@ -327,7 +337,7 @@ const LEVELS = [
           button [14.6..15.2, 0.1..1.7, -19.9..-18.3] -> laser gate opens.
        3. aim the ground, flip -> -y. The crate is already on the ground so it stays on the button.
           Walk through the open gate (x=-9) to the beacon at (-12,0.8,0). */
-  { name: 'Heavy Lifting', gem: [-12, 6.2, 0], tip: 'Gravity moves the crate too. Slide it to the back wall, then into the corner button.',
+  { name: 'Heavy Lifting', hints: ["Flip onto the back wall: the crate slides there too.", "Flip onto the right-hand wall: the crate slides into the corner button.", "Flip back to the ground and walk through the open gate."], gem: [-12, 6.2, 0], tip: 'Gravity moves the crate too. Slide it to the back wall, then into the corner button.',
     par: { flips: 3, time: 40 }, spawn: [-5, 0.8, -2], yaw: 0, beacon: [-12, 0.8, 0], bn: [1, 1],
     bounds: [-40, -20, -45, 40, 50, 35],
     boxes: [
@@ -350,7 +360,7 @@ const LEVELS = [
           electric wall (truck now z -28..-22); you fall with it and land on its back at z=-21.2.
        2. aim the far platform (top y=0, z -28..-18) beside you, flip -> -y. Walk to the beacon
           at (-3.5,0.8,-20) without touching the wall. */
-  { name: 'Truck Bridge', gem: [0, 2.6, -14], tip: 'That wall is electric. Stand right behind the truck and let it land first.',
+  { name: 'Truck Bridge', hints: ["Walk up close behind the truck.", "Aim at the electric wall above the truck and flip: the truck lands first and you land on it.", "Aim at the platform beside you and flip down."], gem: [0, 2.6, -14], tip: 'That wall is electric. Stand right behind the truck and let it land first.',
     par: { flips: 2, time: 30 }, spawn: [0, 0.8, 6], yaw: 0, beacon: [-3.5, 0.8, -20], bn: [1, 1],
     bounds: [-40, -30, -60, 40, 50, 30],
     boxes: [
@@ -367,7 +377,7 @@ const LEVELS = [
        2. aim the ceiling (y=20), flip -> +y. Crate rises to (-6,19.1,9.1) and covers the ceiling button
           [-6.8..-5.2, 19.6..20.2, 8.4..9.8] -> the cage door opens. You fall up 18.4 m.
        Walk on the ceiling through the open door (x=4, z -7..-3) to the beacon at (6,19.2,-5). */
-  { name: 'The Cube', gem: [0, 15, 9.2], tip: 'Every wall is a floor in here. Get the crate onto the ceiling button.',
+  { name: 'The Cube', hints: ["Flip onto the wall in front of you: the crate slides to it.", "Flip onto the ceiling: the crate lands on the ceiling button.", "Walk across the ceiling into the open cage."], gem: [0, 15, 9.2], tip: 'Every wall is a floor in here. Get the crate onto the ceiling button.',
     par: { flips: 2, time: 35 }, spawn: [3, 0.8, -6], yaw: Math.PI, beacon: [6, 19.2, -5], bn: [1, -1],
     bounds: [-12, -2, -12, 12, 22, 12], indoor: true,
     boxes: [
@@ -398,7 +408,7 @@ const LEVELS = [
        2. walk to about z=-22, aim the far tower (face z=-62, 40 m away, inside the 45 m range), flip -> -z.
           Fall 30 m (36 m/s - fatal on its own) into the cushion zone (z -62..-54) which slows you to
           ~2 m/s. Land at y~16.8, walk up the wall to the beacon at y=24. */
-  { name: 'Updraft', gem: [5, 31, -61.2], tip: 'Fans push you (and crates). Ride the updraft to the top, then steer onto the glass roof.',
+  { name: 'Updraft', hints: ["Walk into the fan on the pad and ride it to the top.", "At the top, steer forward onto the glass roof.", "From the far edge of the roof, flip onto the distant tower - its fan cushions the fall.", "Walk up the tower wall to the beacon."], gem: [5, 31, -61.2], tip: 'Fans push you (and crates). Ride the updraft to the top, then steer onto the glass roof.',
     par: { flips: 1, time: 40 }, spawn: [0, 0.8, 8], yaw: 0, beacon: [0, 24, -61.2], bn: [2, 1],
     bounds: [-45, -30, -100, 45, 80, 35],
     boxes: [
@@ -420,7 +430,7 @@ const LEVELS = [
           The wall lift (4x4, surface 0.9 m above the wall) slides between y 17.5..21.5 and y 32.5..36.5.
           Jump onto it (jump = 1.45 m), ride over the band, walk off its top edge (y>36.5).
        4. walk up to the beacon at y=42. */
-  { name: 'Sky Ferry', gem: [-4.5, 47.5, -49.2], cps: [{ p: [0, 10.8, -40], g: [1, -1] }], tip: 'Moving platforms carry you. Ride the ferry, then jump (Space) onto the wall lift to cross the electric band.',
+  { name: 'Sky Ferry', hints: ["Wait for the ferry to touch your roof, then step on and ride it across.", "Flip onto the tall tower and walk up to just below the electric band.", "Jump onto the wall lift when it is at the bottom and ride it over the band.", "Walk off its top edge and up to the beacon."], gem: [-4.5, 47.5, -49.2], cps: [{ p: [0, 10.8, -40], g: [1, -1] }], tip: 'Moving platforms carry you. Ride the ferry, then jump (Space) onto the wall lift to cross the electric band.',
     par: { flips: 1, time: 60 }, spawn: [0, 10.8, 3], yaw: 0, beacon: [0, 42, -49.2], bn: [2, 1],
     bounds: [-45, -30, -95, 45, 80, 30],
     boxes: [
@@ -448,7 +458,7 @@ const LEVELS = [
           at z -63..-59 (move below y 3.5 between z=-52.5 and z=-58.5). Leave the zone at z=-70;
           gravity stays +x and the wall continues to z=-78.
        4. aim the finish floor (top y=0, z -92..-70), flip -> -y, walk to the beacon at (0,0.8,-84). */
-  { name: 'Lockdown', gem: [0, 9.2, 9], tip: 'Red zone: no flipping inside. Purple zone: gravity is forced. Choose your floor before you walk in.',
+  { name: 'Lockdown', hints: ["Flip onto the ceiling before the red zone.", "Walk along the ceiling; the purple zone drops you onto the right wall.", "Go high past the first electric patch and low past the second.", "After the zone, flip down to the floor."], gem: [0, 9.2, 9], tip: 'Red zone: no flipping inside. Purple zone: gravity is forced. Choose your floor before you walk in.',
     par: { flips: 2, time: 50 }, night: true, spawn: [0, 0.8, 6], yaw: 0, beacon: [0, 0.8, -84], bn: [1, 1],
     bounds: [-30, -25, -105, 30, 40, 25],
     boxes: [
@@ -490,7 +500,7 @@ const LEVELS = [
        6. aim the roof (y=14), flip -> -y (max 20 m drop).
        7. walk to z~-89, aim the last tower (face z=-128, 39 m away), flip -> -z. Fall 30 m into the
           cushion fan (z -128..-120), land at ~2 m/s, walk up the wall to the beacon at y=22. */
-  { name: 'Grand Tour', gem: [-9.2, 32.5, -80], cps: [{ p: [0, 14.8, -20], g: [1, -1] }, { p: [0, 14.8, -61], g: [1, -1] }, { p: [0, 14.8, -84], g: [1, -1] }], tip: 'Everything you have learned: crate, fans, ferry, zones and one very long fall.',
+  { name: 'Grand Tour', hints: ["Flip onto the metal panel: the crate hits the button.", "Flip back to the ground and walk into the fan cage.", "Float up, steer onto the glass roof and ride the ferry.", "In the purple zone, walk up the wall above the electric patch.", "Flip to the roof, then from its far edge flip onto the last tower."], gem: [-9.2, 32.5, -80], cps: [{ p: [0, 14.8, -20], g: [1, -1] }, { p: [0, 14.8, -61], g: [1, -1] }, { p: [0, 14.8, -84], g: [1, -1] }], tip: 'Everything you have learned: crate, fans, ferry, zones and one very long fall.',
     par: { flips: 4, time: 100 }, night: true, spawn: [2, 0.8, 8], yaw: 0, beacon: [0, 22, -127.2], bn: [2, 1],
     bounds: [-45, -30, -175, 45, 80, 35],
     boxes: [
@@ -530,7 +540,7 @@ const LEVELS = [
           [14.6..15.2, 0.1..1.7, -19.9..-18.3] -> both cage doors open.
        2. aim the ground, flip -> -y (4 m drop). The fan keeps the crate pressed into the corner.
           Walk out of the stream (+z), round to the cage door (x=8, z 4..12) and in to the beacon (11,0.8,8). */
-  { name: 'Tailwind', gem: [-14, 0.8, -18.6], tip: 'No wall to flip the crate sideways this time. Let the fan stream along the back wall carry it.',
+  { name: 'Tailwind', hints: ["Flip onto the back wall from the ledge.", "The fan stream carries the crate into the corner button.", "Flip back to the ground and walk round to the cage door."], gem: [-14, 0.8, -18.6], tip: 'No wall to flip the crate sideways this time. Let the fan stream along the back wall carry it.',
     par: { flips: 2, time: 35 }, spawn: [-11, 4.8, 0], yaw: 0, beacon: [11, 0.8, 8], bn: [1, 1],
     bounds: [-40, -20, -45, 40, 50, 35],
     boxes: [
@@ -555,7 +565,7 @@ const LEVELS = [
        3. walk on the underside to z~-39.5. Ferry 2 hangs level with the plate (underside y=22) and slides
           z=-42.1 <-> z=-61.9: step onto it upside down, ride, step off onto plate 2 (z -76..-64).
        4. walk to z=-72, aim the roof below (y=6), flip -> -y (14.4 m), landing at the beacon (0,6.8,-72). */
-  { name: 'Ceiling Ferry', gem: [0, 21.2, -75.3], cps: [{ p: [0, 10.8, -32], g: [1, -1] }, { p: [0, 21.2, -70], g: [1, 1] }], tip: 'Platforms carry you on any side. Ride the second ferry upside down.',
+  { name: 'Ceiling Ferry', hints: ["Ride the ferry to the island.", "Flip up onto the plate above.", "Ride the second ferry upside down.", "Over the far roof, flip back down."], gem: [0, 21.2, -75.3], cps: [{ p: [0, 10.8, -32], g: [1, -1] }, { p: [0, 21.2, -70], g: [1, 1] }], tip: 'Platforms carry you on any side. Ride the second ferry upside down.',
     par: { flips: 2, time: 55 }, night: true, spawn: [0, 10.8, 3], yaw: 0, beacon: [0, 6.8, -72], bn: [1, 1],
     bounds: [-45, -30, -110, 45, 70, 30],
     boxes: [
@@ -580,7 +590,7 @@ const LEVELS = [
           [5.2..6.8, 0.1..1.7, 9.6..10.2]. Both doors of the cage open.
        Walk through both doors (x=4 and x=5.3, z -10..-4) to the beacon at (7.5,0.8,-7).
        (Going +z first leaves crate A stuck under the shelf.) */
-  { name: 'Split Up', gem: [-8.5, 10.8, 3], tip: 'Two crates, two buttons, two laser doors. The shelf can catch one crate on its way down.',
+  { name: 'Split Up', hints: ["Flip to the ceiling first.", "Then flip to the wall you were facing at the start.", "Then flip to the floor: one crate lands on the shelf, the other on the floor.", "Walk through both open doors."], gem: [-8.5, 10.8, 3], tip: 'Two crates, two buttons, two laser doors. The shelf can catch one crate on its way down.',
     par: { flips: 3, time: 50 }, spawn: [0, 0.8, -6], yaw: Math.PI, beacon: [7.5, 0.8, -7], bn: [1, 1],
     bounds: [-12, -2, -12, 12, 22, 12], indoor: true,
     boxes: [
@@ -604,7 +614,7 @@ const LEVELS = [
      face the tower, and while falling past the wall aim it and flip -> +z. Only the speed INTO a surface
      hurts, so the landing is soft; you skid down the wall to a stop. The wall runs from y=30 down to
      y=-90, giving about 3 seconds. Walk to the beacon at (0,-10,-6.8). */
-  { name: 'Leap of Faith', gem: [4, -60, -6.8], tip: 'The beacon is on the wall under your feet. Step backwards off the edge behind you, then flip onto the wall as you fall past it.',
+  { name: 'Leap of Faith', hints: ["Walk backwards off the roof edge behind you.", "While falling, hold flip to slow time, aim at the wall and let go.", "Walk along the wall to the beacon."], gem: [4, -60, -6.8], tip: 'The beacon is on the wall under your feet. Step backwards off the edge behind you, then flip onto the wall as you fall past it.',
     par: { flips: 1, time: 20 }, spawn: [0, 30.8, -2], yaw: Math.PI, beacon: [0, -10, -6.8], bn: [2, -1],
     bounds: [-40, -85, -45, 40, 60, 40],
     boxes: [
@@ -623,7 +633,7 @@ const LEVELS = [
        6. at z about -84 aim the tower roof below (y=14), flip -> -y (14.4 m).
        7. step off the far edge (z < -92) and, falling past the wall (face z=-92), aim it and flip -> +z.
           Walk to the beacon at (0,-6,-92.8). */
-  { name: 'Night Shift', gem: [0, 29.2, -89.3], cps: [{ p: [3.5, 0.8, -20], g: [1, -1] }, { p: [0, 18.8, -33], g: [1, -1] }, { p: [0, 14.8, -85], g: [1, -1] }], tip: 'One last run: truck shield, updraft, ceiling ferry, and a leap of faith at the end.',
+  { name: 'Night Shift', hints: ["Stand behind the truck and flip at the electric wall.", "Flip down, then go round the truck into the fan.", "From the roof, flip up to the plate and ride the ceiling ferry.", "Flip down onto the tower roof.", "Step off the far edge and flip onto the tower wall in mid-air."], gem: [0, 29.2, -89.3], cps: [{ p: [3.5, 0.8, -20], g: [1, -1] }, { p: [0, 18.8, -33], g: [1, -1] }, { p: [0, 14.8, -85], g: [1, -1] }], tip: 'One last run: truck shield, updraft, ceiling ferry, and a leap of faith at the end.',
     par: { flips: 5, time: 110 }, night: true, spawn: [0, 0.8, 6], yaw: 0, beacon: [0, -6, -92.8], bn: [2, -1],
     bounds: [-45, -85, -135, 45, 70, 35],
     boxes: [
@@ -650,7 +660,7 @@ const LEVELS = [
           at z=-50 go through the middle (y~1) while the pair are apart at the two ends.
           Checkpoint on the wall at z=-29.
        3. past z=-64 aim the far street, flip -> -y, walk to the beacon at (0,0.8,-74). */
-  { name: 'Patrol', gem: [-7.2, -3.2, -43], cps: [{ p: [-7.2, 0.8, -29], g: [0, -1] }], theme: 'foundry',
+  { name: 'Patrol', hints: ["Flip onto the long wall and stay between the electric bands.", "Cross each drone line when the drone is at the far end of its path.", "At the pair, go through the middle while they are apart.", "At the end of the wall, flip down to the street."], gem: [-7.2, -3.2, -43], cps: [{ p: [-7.2, 0.8, -29], g: [0, -1] }], theme: 'foundry',
     tip: 'Drones zap on touch. Watch the red dotted line - that is their patrol path - and slip past behind them.',
     par: { flips: 2, time: 45 }, spawn: [0, 0.8, 4], yaw: 0, beacon: [0, 0.8, -74], bn: [1, 1],
     bounds: [-40, -30, -100, 40, 60, 30],
@@ -679,7 +689,7 @@ const LEVELS = [
        5. aim the floor, flip -> -y. Walk round to the cage door (z=6, x -10..-6); a drone sweeps in front
           of it (x -9.2..-6.6 at z=4.6), go in on the side it is not. Beacon at (-8,0.8,8).
      Leaving column x=-7 any other way makes the button unreachable: press R. */
-  { name: 'Slide Rule', gem: [0, 6, 0], theme: 'foundry', indoor: true, limit: 8,
+  { name: 'Slide Rule', hints: ["Flip to the wall you face at the start.", "Then flip to the wall that was on your left at the start.", "Then flip to the wall that was behind you at the start.", "Then that left-hand wall again: the crate reaches the button.", "Flip to the floor and enter the cage on the side the drone is not."], gem: [0, 6, 0], theme: 'foundry', indoor: true, limit: 8,
     tip: 'The crate slides until something stops it. Plan its route to the floor button. The ceiling is glass. R restarts.',
     par: { flips: 5, time: 70 }, spawn: [-3, 0.8, -3], yaw: Math.PI, beacon: [-8, 0.8, 8], bn: [1, 1],
     bounds: [-12, -2, -12, 12, 14, 12],
@@ -709,7 +719,7 @@ const LEVELS = [
        3. at z about -48.5 aim tower C (face z=-68), flip -> -z (18 m).
        4. walk up the wall. Drones sweep across at y=30 and y=40. (The wall fan in the middle lane,
           x -2..2, carries you up fast if you dare.) Beacon at y=50. */
-  { name: 'Hot Air', gem: [5, 56, -67.2], cps: [{ p: [0, 2.8, -22], g: [1, -1] }, { p: [4.5, 2.8, -46], g: [1, -1] }], theme: 'foundry',
+  { name: 'Hot Air', hints: ["Run straight into the wind tunnel and keep going.", "Pass each roof drone just after it goes by.", "Flip onto the tower from the far edge of the roof.", "Walk up beside the fan lane, crossing each drone line when the drone is on the other side."], gem: [5, 56, -67.2], cps: [{ p: [0, 2.8, -22], g: [1, -1] }, { p: [4.5, 2.8, -46], g: [1, -1] }], theme: 'foundry',
     tip: 'Run into the wind tunnel and let it throw you across the gap. Then time the drones.',
     par: { flips: 1, time: 60 }, spawn: [0, 16.8, 6], yaw: 0, beacon: [0, 50, -67.2], bn: [2, 1],
     bounds: [-45, -35, -110, 45, 90, 30],
@@ -740,7 +750,7 @@ const LEVELS = [
        3. NO-FLIP zone z -54..-34: floor, ceiling and left wall are electric. Stay on the right wall
           between y -3.1 and 3.1. Drones sweep y -2.6..2.6 at z=-40 and z=-48: pass when each is high.
        4. past z=-54 aim the left wall (x=-4), flip -> -x (6.4 m). Beacon at (-3.2,0,-64). */
-  { name: 'Airlock', gem: [0, -3.2, -31], cps: [{ p: [0, 3.2, -31], g: [1, 1] }], theme: 'orbit', indoor: true,
+  { name: 'Airlock', hints: ["Walk in: the purple zone lifts you to the ceiling.", "Dodge the drone. Pass the first patch on the metal-wall side, the second on the glass side.", "In the gap, flip onto the metal wall and move down a little.", "Pass each wall drone when it is high.", "After the red zone, flip onto the opposite wall."], gem: [0, -3.2, -31], cps: [{ p: [0, 3.2, -31], g: [1, 1] }], theme: 'orbit', indoor: true,
     tip: 'Purple zones force your gravity. Use the gaps between zones to choose your next wall.',
     par: { flips: 2, time: 60 }, spawn: [0, -3.2, 6], yaw: 0, beacon: [-3.2, 0, -64], bn: [0, 1],
     bounds: [-30, -30, -95, 30, 30, 35],
@@ -776,7 +786,7 @@ const LEVELS = [
        3. walk to z~-26 (drone on slab 3 runs along z=-22), aim slab 3 (underside y=24), flip -> +y.
        4. walk to x~22.3 (drone on slab 4 covers x 11.4..20.6; the slab runs to x=24), aim slab 4 (face z=-46), flip -> -z (19 m).
        5. aim slab 5 (top y=6) below, flip -> -y (16.4 m). Beacon at (16,6.8,-40). */
-  { name: 'Hopscotch', gem: [17.2, 9, -15.5], cps: [{ p: [17.2, 5, -22], g: [0, 1] }], theme: 'orbit', limit: 6,
+  { name: 'Hopscotch', hints: ["Flip to the first slab when its drone is moving away from your landing spot.", "Walk high up that slab before flipping to the next one.", "Before every flip, move off the line the next drone patrols.", "On the ceiling slab, go to the far side strip before flipping.", "Flip down to the last slab."], gem: [17.2, 9, -15.5], cps: [{ p: [17.2, 5, -22], g: [0, 1] }], theme: 'orbit', limit: 6,
     tip: 'Each slab has a drone on it. The landing ring shows where you will arrive - choose your spot first.',
     par: { flips: 5, time: 60 }, spawn: [0, 0.8, 0], yaw: 0, beacon: [16, 6.8, -40], bn: [1, 1],
     bounds: [-30, -30, -70, 45, 50, 30],
@@ -806,7 +816,7 @@ const LEVELS = [
           Patch 2 covers y 2..10 at z -70..-66 (go below y 1.5). Checkpoint past the zone at z=-78.
        4. aim the reactor tower (face z=-118, 40 m), flip -> -z. The cushion fan (z -118..-110) brakes the
           31 m fall. Walk up: a drone sweeps across at y=14. Beacon at (0,20,-117.2). */
-  { name: 'Reactor', gem: [-5.2, 9.3, -78.5], theme: 'orbit',
+  { name: 'Reactor', hints: ["Flip up and ride the ferry; switch sides between the two sentries.", "Flip down to the pad below.", "In the purple zone, go high past the first patch and low past the second.", "Flip to the reactor tower - the fan cushions you.", "Cross the drone line and walk to the beacon."], gem: [-5.2, 9.3, -78.5], theme: 'orbit',
     cps: [{ p: [0, 11.2, -40], g: [1, 1] }, { p: [0, -3.2, -46], g: [1, -1] }, { p: [-5.2, 0, -78], g: [0, -1] }],
     tip: 'The last run. Sentries on the ferry, a locked corridor, and one very long fall into the cushion fan.',
     par: { flips: 3, time: 120 }, spawn: [0, 0.8, 6], yaw: 0, beacon: [0, 20, -117.2], bn: [2, 1],
@@ -2094,7 +2104,7 @@ function finishLevel() {
 //  SAVE DATA + OPTIONS (localStorage, always wrapped in try/catch)
 // =====================================================================
 const $ = id => document.getElementById(id);
-const save = { stars: [], best: [], gems: [] };
+const save = { stars: [], best: [], gems: [], hints: [], spent: 0 };
 const opts = { sky: 'auto', ghost: true, mute: false, tips: true, gfx: 'auto', suit: 0, slow: 0.45 };
 try {
   const s = JSON.parse(localStorage.getItem('gfc_save') || 'null');
@@ -2102,12 +2112,33 @@ try {
     if (Array.isArray(s.stars)) save.stars = s.stars;
     if (Array.isArray(s.best)) save.best = s.best;
     if (Array.isArray(s.gems)) save.gems = s.gems;
+    if (Array.isArray(s.hints)) save.hints = s.hints;
+    if (typeof s.spent === 'number') save.spent = s.spent;
     if (s.opts) for (const k in opts) if (typeof s.opts[k] === typeof opts[k]) opts[k] = s.opts[k];
   }
 } catch (e) { /* no storage: play without saving */ }
-function persist() { try { localStorage.setItem('gfc_save', JSON.stringify({ stars: save.stars, best: save.best, gems: save.gems, opts: opts })); } catch (e) { /* ignore */ } }
+function persist() { try { localStorage.setItem('gfc_save', JSON.stringify({ stars: save.stars, best: save.best, gems: save.gems, hints: save.hints, spent: save.spent, opts: opts })); } catch (e) { /* ignore */ } }
 function totalStars() { return save.stars.reduce((a, b) => a + (b || 0), 0); }
 let dbgOn = false;
+// Coins are in-game only: 30 to start, 10 per star, 20 per gem. A hint (one solution step) costs HINT_COST.
+const HINT_COST = 10;
+function coins() { return 30 + 10 * totalStars() + 20 * gemCount() - save.spent; }
+function showHints() {
+  const H = S.L.hints || [], n = Math.min(save.hints[S.li] || 0, H.length), box = $('hintBox');
+  box.style.display = n ? 'block' : 'none';
+  box.innerHTML = '';
+  for (let k = 0; k < n; k++) { const d = document.createElement('div'), b = document.createElement('b'); b.textContent = (k + 1) + '. '; d.appendChild(b); d.appendChild(document.createTextNode(H[k])); box.appendChild(d); }
+  const left = H.length - n;
+  $('bHint').textContent = left ? 'Buy a hint (' + HINT_COST + ' coins)  -  you have ' + coins() : 'All hints bought for this level';
+}
+function buyHint() {
+  if (!S.L || (S.mode !== 'play' && S.mode !== 'pause')) return;
+  const H = S.L.hints || [], n = save.hints[S.li] || 0;
+  if (n >= H.length) { sfx.deny(); toast('No more hints for this level'); return; }
+  if (coins() < HINT_COST) { sfx.deny(); toast('Not enough coins - stars and gems earn coins'); return; }
+  save.hints[S.li] = n + 1; save.spent += HINT_COST; persist();
+  sfx.button(true); showHints(); toast('Hint ' + (n + 1) + ' of ' + H.length + ' bought');
+}
 function gemCount() { return save.gems.reduce((a, b) => a + (b ? 1 : 0), 0); }
 function needStars(i) { let n = 0; for (const w of WORLDS) { n += w.n; if (i < n) return w.need; } return 0; }   // worlds unlock with stars
 function unlocked(i) { return dbgOn || totalStars() >= needStars(i); }               // star locks: levels 7+ and 11+
@@ -2182,7 +2213,7 @@ const SLOWS = [[0.6, 'Light'], [0.45, 'Medium'], [0.3, 'Strong'], [1, 'Off']];  
 function buildGrid() {
   const g = $('grid'); g.innerHTML = '';
   const tot = totalStars();
-  $('starTotal').textContent = '\u2605 ' + tot + ' / ' + LEVELS.length * 3 + '      \u25C6 ' + gemCount() + ' / ' + LEVELS.length + ' gems';
+  $('starTotal').textContent = '\u2605 ' + tot + ' / ' + LEVELS.length * 3 + '      \u25C6 ' + gemCount() + ' / ' + LEVELS.length + ' gems      ' + coins() + ' coins';
   let i = 0;
   WORLDS.forEach((w, wi) => {
     const open = dbgOn || tot >= w.need, h = document.createElement('div'), row = document.createElement('div');
@@ -2224,13 +2255,13 @@ function startLevel(i) {
   if (!unlocked(i)) return;
   loadLevel(i);
   $('lvName').textContent = (i + 1) + '. ' + S.L.name;
-  setTip();
+  setTip(); showHints();
   showScreen(null);
   if (touchOn) goFullscreen(); else grabMouse();
 }
 let pausedAt = 0;
 function toggleTips() { opts.tips = !opts.tips; $('tip').style.display = opts.tips ? '' : 'none'; persist(); }
-function pauseGame() { if (S.mode === 'play') { S.mode = 'pause'; pausedAt = performance.now(); showScreen('pause'); } }
+function pauseGame() { if (S.mode === 'play') { S.mode = 'pause'; pausedAt = performance.now(); showHints(); showScreen('pause'); } }
 function resumeGame() { if (S.mode === 'pause') { S.mode = 'play'; showScreen(null); grabMouse(); } }
 function restartLevel() { $('dead').classList.remove('on'); resetLevel(); showScreen(null); }
 function toMenu(screen) { S.mode = 'title'; if (screen === 'levels') buildGrid(); showScreen(screen); }
@@ -2252,6 +2283,7 @@ $('bGfx').onclick = () => {                 // High = real shadows + more clouds
   if (S.L) { const m = S.mode; buildLevel(S.li, true); S.mode = m; }
 };
 $('bResume').onclick = resumeGame;
+$('bHint').onclick = buyHint;
 $('bRestart').onclick = () => { restartLevel(); grabMouse(); };
 $('bPLevels').onclick = () => toMenu('levels');
 $('bPTitle').onclick = () => toMenu('title');
@@ -2272,6 +2304,7 @@ function updateHud() {
   setText('hFlips', L.limit ? S.flips + ' / ' + L.limit : S.flips + '  (par ' + L.par.flips + ')');
   setText('hDeaths', String(S.deaths));
   setText('hDist', S.beaconDist.toFixed(0));
+  setText('hCoins', String(coins()));
   setText('hGem', S.gem ? (S.gem.got ? '\u25C6 found' : '\u25C7 hidden') : '-');
   const fo = S.focus && !P.grounded && S.mode === 'play';
   if (hudCache.focus !== fo) { hudCache.focus = fo; $('focus').classList.toggle('on', fo); }
@@ -2355,6 +2388,7 @@ window.addEventListener('keydown', e => {
     case 'KeyQ': undoFlip(); break;
     case 'KeyR': if (inGame) restartLevel(); break;
     case 'KeyH': toggleTips(); break;
+    case 'KeyB': buyHint(); break;
     case 'KeyM': opts.mute = !opts.mute; persist(); optLabels(); if (inGame) toast('Sound ' + (opts.mute ? 'off' : 'on')); break;
     case 'KeyN': cycleSky(); if (inGame) toast('Sky: ' + opts.sky); break;
     case 'KeyP': case 'Escape': if (S.mode === 'play') pauseGame(); else if (S.mode === 'pause' && performance.now() - pausedAt > 300) resumeGame(); break;
@@ -2445,6 +2479,7 @@ touchButton('tJump', () => { K.jump = true; }, () => { K.jump = false; });
 touchButton('tPause', pauseGame);
 touchButton('tRestart', () => { if (S.mode === 'play' || S.mode === 'dead') restartLevel(); });
 touchButton('tTip', toggleTips);
+touchButton('tHint', buyHint);
 window.addEventListener('touchstart', enableTouch, { passive: true, capture: true });
 window.addEventListener('touchend', () => { audio(); }, { passive: true });      // phones only start audio from a tap
 window.addEventListener('click', () => { audio(); });
