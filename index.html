@@ -35,6 +35,9 @@
   .sw small { font-weight:600; font-size:11px; }
   .sw.sel { border-color:#fff; box-shadow:0 0 18px rgba(255,255,255,.6); }
   .sw.locked { opacity:.4; cursor:not-allowed; }
+  .si { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.08); }
+  .si div { flex:1; } .si b { color:var(--accent); } .si small { color:var(--dim); display:block; }
+  .si .btn { min-width:120px; margin:0; }
   #hintBox { position:absolute; right:14px; top:160px; max-width:300px; background:var(--panel); border-left:4px solid #ffd24a; border-radius:8px; padding:8px 12px;
     font-size:13px; line-height:1.4; display:none; max-height:44vh; overflow:hidden; }
   #hintBox b { color:#ffd24a; }
@@ -133,7 +136,7 @@
     <div>Deaths <b id="hDeaths">0</b></div>
     <div>Beacon <b id="hDist">0</b> m</div>
     <div>Gem <b id="hGem"></b></div>
-    <div>Coins <b id="hCoins"></b></div>
+    <div>Stars to spend <b id="hCoins"></b></div>
   </div>
   <div id="gravBox"></div><div id="gravLbl">GRAVITY</div>
   <div id="cross"></div><div id="aimTxt"></div>
@@ -159,6 +162,7 @@
   <p class="sub">Aim at any surface. Press E. That's your new floor.</p>
   <button class="btn" id="bPlay">Play</button>
   <button class="btn alt" id="bLevels">Level Select</button>
+  <button class="btn alt" id="bShop">Star Shop</button>
   <button class="btn alt" id="bSuits">Suits</button>
   <button class="btn alt" id="bControls">Controls</button>
   <div class="row" style="margin-top:14px">
@@ -175,6 +179,13 @@
   <div class="sub" id="starTotal" style="margin-bottom:10px"></div>
   <div id="grid"></div>
   <button class="btn alt" data-go="title">Back</button>
+</div>
+
+<div id="shop" class="screen">
+  <h2>Star Shop</h2>
+  <div class="sub" id="shopInfo" style="margin-bottom:10px"></div>
+  <div id="shopGrid" class="box" style="max-width:560px"></div>
+  <button class="btn alt" data-go="title" style="margin-top:12px">Back</button>
 </div>
 
 <div id="suits" class="screen">
@@ -201,8 +212,8 @@
       <tr class="tc"><td>Hold FLIP in mid-air</td><td>Slow motion while you aim - let go to flip</td></tr>
       <tr class="kb"><td>Q</td><td>Undo the last flip (counts as a flip)</td></tr>
       <tr class="kb"><td>R</td><td>Restart level</td></tr>
-      <tr class="kb"><td>B</td><td>Buy a hint with coins (also on the pause screen)</td></tr>
-      <tr class="tc"><td>&#128161;</td><td>Buy a hint with coins</td></tr>
+      <tr class="kb"><td>B</td><td>Buy a hint for 1 star (also on the pause screen)</td></tr>
+      <tr class="tc"><td>&#128161;</td><td>Buy a hint for 1 star</td></tr>
       <tr class="kb"><td>H</td><td>Show / hide tips</td></tr>
       <tr class="kb"><td>N</td><td>Switch sky: auto / day / night</td></tr>
       <tr class="kb"><td>M</td><td>Mute sounds</td></tr>
@@ -277,7 +288,7 @@ const CFG = {
    cps     : {p:[x,y,z] respawn point, g:[axis,sign] gravity you must be standing in to trigger it}
    gem     : [x,y,z] hidden gem (walk within 1.4 m)
    theme   : 'foundry' | 'orbit' (otherwise day/night city)
-   hints   : solution steps, bought one at a time with coins
+   hints   : solution steps, bought one at a time with stars
    plats   : {h:[half-size], a:[x,y,z], b:[x,y,z], T:seconds for a full there-and-back}
    zones   : {t:'noflip', b:[box]}  or  {t:'lock', g:[axis,sign], b:[box]}
    spawn/beacon are player-centre positions; bn = [axis,sign] normal of the beacon's surface
@@ -1088,7 +1099,7 @@ function stepPlayer(dt) {
     const hit = sweep(P, i, dx);
     if (hit) {
       const hv = hit.v ? hit.v[i] : 0, rel = Math.abs(P.v[i] - hv);
-      if (rel > CFG.V_DEATH) { die('SPLAT!'); return; }       // death by impact
+      if (rel > vDeath()) { die('SPLAT!'); return; }       // death by impact
       if (i === a) {
         const down = (P.v[a] - hv) * g.s > 0;
         if (down && !P.grounded && rel > 5) {
@@ -1223,12 +1234,12 @@ function computeAim(o, d) {
   aim.pt = [o[0] + d[0] * hit.t, o[1] + d[1] * hit.t, o[2] + d[2] * hit.t];
   const k = hit.o.kind, L = S.L;
   if (S.zone) { aim.msg = S.zone.t === 'lock' ? 'Gravity is locked here' : 'No flipping in this zone'; return aim; }
-  if (L.limit && S.flips >= L.limit) { aim.msg = 'No flips left (R to restart)'; return aim; }
+  if (L.limit && S.flips >= flipLimit()) { aim.msg = 'No flips left (R to restart)'; return aim; }
   if (k === 'door') { aim.msg = 'Laser door - no grip'; return aim; }
   if (k === 'crate') { aim.msg = 'Loose object - no grip'; return aim; }
   if (k === 'plat') { aim.msg = 'Moving platform - no grip'; return aim; }
   if (hit.o.type === 'glass') { aim.msg = 'Glass - no grip'; return aim; }
-  if (hit.t > CFG.FLIP_RANGE) { aim.msg = 'Too far (' + hit.t.toFixed(0) + ' m, max ' + CFG.FLIP_RANGE + ')'; return aim; }
+  if (hit.t > flipRange()) { aim.msg = 'Too far (' + hit.t.toFixed(0) + ' m, max ' + flipRange() + ')'; return aim; }
   if (hit.a === S.grav.a && -hit.s === S.grav.s) { aim.msg = ''; return aim; }
   aim.ok = true;
   aim.g2 = { a: hit.a, s: -hit.s };
@@ -1254,7 +1265,7 @@ function undoFlip() {
   if (S.mode !== 'play') return;
   if (S.zone) { sfx.deny(); toast(S.zone.t === 'lock' ? 'Gravity is locked here' : 'No flipping in this zone'); return; }
   if (!S.hist.length) { sfx.deny(); toast('Nothing to undo'); return; }
-  if (S.L.limit && S.flips >= S.L.limit) { sfx.deny(); toast('No flips left (R to restart)'); return; }
+  if (S.L.limit && S.flips >= flipLimit()) { sfx.deny(); toast('No flips left (R to restart)'); return; }
   setGravity(S.hist.pop(), true);                            // an undo counts as a flip
   sfx.flip();
 }
@@ -1919,7 +1930,7 @@ function updateView(dt) {
   camDist = want < camDist ? want : Math.min(want, camDist + dt * 12);
   camera.position.set(pv[0] - fw[0] * camDist, pv[1] - fw[1] * camDist, pv[2] - fw[2] * camDist);
   camera.quaternion.copy(viewQ);
-  const fallF = Math.min(1, Math.max(0, P.v[S.grav.a] * S.grav.s) / CFG.V_DEATH);
+  const fallF = Math.min(1, Math.max(0, P.v[S.grav.a] * S.grav.s) / vDeath());
   const fov = S.mode === 'win' ? 54 : 70 + 9 * fallF;      // zoom at the beacon, widen with fall speed
   aimSun(P.p[0], P.p[1], P.p[2]);
   if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 5); camera.updateProjectionMatrix(); }
@@ -1947,7 +1958,7 @@ function updateView(dt) {
   if (playing) {
     const aim = computeAim(pv, fw);
     if (aim.ok && aim.pred) {
-      const pr = aim.pred, lvl = pr.lost || pr.speed >= CFG.V_DEATH ? 2 : (pr.speed >= CFG.V_DEATH * 0.7 || pr.hover ? 1 : 0);
+      const pr = aim.pred, lvl = pr.lost || pr.speed >= vDeath() ? 2 : (pr.speed >= vDeath() * 0.7 || pr.hover ? 1 : 0);
       aim.level = lvl; show = true;
       const pa = fx.line.geometry.attributes.position;
       pa.setXYZ(0, P.p[0], P.p[1], P.p[2]); pa.setXYZ(1, pr.p[0], pr.p[1], pr.p[2]); pa.needsUpdate = true;
@@ -2104,7 +2115,7 @@ function finishLevel() {
 //  SAVE DATA + OPTIONS (localStorage, always wrapped in try/catch)
 // =====================================================================
 const $ = id => document.getElementById(id);
-const save = { stars: [], best: [], gems: [], hints: [], spent: 0 };
+const save = { stars: [], best: [], gems: [], hints: [], spent: 0, up: { range: 0, boots: 0, flip: 0 } };
 const opts = { sky: 'auto', ghost: true, mute: false, tips: true, gfx: 'auto', suit: 0, slow: 0.45 };
 try {
   const s = JSON.parse(localStorage.getItem('gfc_save') || 'null');
@@ -2113,31 +2124,62 @@ try {
     if (Array.isArray(s.best)) save.best = s.best;
     if (Array.isArray(s.gems)) save.gems = s.gems;
     if (Array.isArray(s.hints)) save.hints = s.hints;
-    if (typeof s.spent === 'number') save.spent = s.spent;
+    if (s.v === 2 && typeof s.spent === 'number') save.spent = s.spent;     // older saves counted coins: start the star bank fresh
+    if (s.up) for (const k in save.up) if (typeof s.up[k] === 'number') save.up[k] = s.up[k];
     if (s.opts) for (const k in opts) if (typeof s.opts[k] === typeof opts[k]) opts[k] = s.opts[k];
   }
 } catch (e) { /* no storage: play without saving */ }
-function persist() { try { localStorage.setItem('gfc_save', JSON.stringify({ stars: save.stars, best: save.best, gems: save.gems, hints: save.hints, spent: save.spent, opts: opts })); } catch (e) { /* ignore */ } }
+function persist() { try { localStorage.setItem('gfc_save', JSON.stringify({ stars: save.stars, best: save.best, gems: save.gems, hints: save.hints, spent: save.spent, up: save.up, v: 2, opts: opts })); } catch (e) { /* ignore */ } }
 function totalStars() { return save.stars.reduce((a, b) => a + (b || 0), 0); }
 let dbgOn = false;
-// Coins are in-game only: 30 to start, 10 per star, 20 per gem. A hint (one solution step) costs HINT_COST.
-const HINT_COST = 10;
-function coins() { return 30 + 10 * totalStars() + 20 * gemCount() - save.spent; }
+// The Star Shop: stars you earn are also money. Spending them never re-locks a world (worlds count stars EARNED).
+// You start with 2 spare stars so a first hint is always affordable.
+const HINT_COST = 1;
+const SHOP = [
+  { id: 'range', name: 'Long Reach', desc: '+10 m flip range per level', costs: [3, 5, 8] },
+  { id: 'boots', name: 'Shock Boots', desc: 'survive 10% harder landings per level', costs: [4, 7] },
+  { id: 'flip', name: 'Spare Flip', desc: '+1 flip on levels with a flip limit', costs: [6] }
+];
+function coins() { return 2 + totalStars() - save.spent; }                       // stars left to spend
+function flipRange() { return CFG.FLIP_RANGE + 10 * save.up.range; }
+function vDeath() { return CFG.V_DEATH * (1 + 0.1 * save.up.boots); }
+function flipLimit() { return S.L.limit + save.up.flip; }
+function buildShop() {
+  const g = $('shopGrid'); g.innerHTML = '';
+  $('shopInfo').textContent = '\u2605 ' + coins() + ' stars to spend   (earned ' + totalStars() + ', spent ' + save.spent + ')  -  spending never re-locks a world';
+  for (const it of SHOP) {
+    const lv = save.up[it.id], max = lv >= it.costs.length, row = document.createElement('div'), b = document.createElement('button');
+    row.className = 'si';
+    row.innerHTML = '<div><b></b><small></small></div>';
+    row.firstChild.children[0].textContent = it.name + '   ' + '\u25CF'.repeat(lv) + '\u25CB'.repeat(it.costs.length - lv);
+    row.firstChild.children[1].textContent = it.desc;
+    b.className = 'btn small' + (max ? ' alt' : ''); b.textContent = max ? 'Maxed' : 'Buy  \u2605 ' + it.costs[lv];
+    b.onclick = () => {
+      if (max) return;
+      if (coins() < it.costs[lv]) { sfx.deny(); return; }
+      save.spent += it.costs[lv]; save.up[it.id]++; persist(); sfx.gem(); buildShop();
+    };
+    row.appendChild(b); g.appendChild(row);
+  }
+  const h = document.createElement('div'); h.className = 'si';
+  h.innerHTML = '<div><b>Hints</b><small>\u2605 1 each, bought inside a level: B key, the pause screen, or the lightbulb button</small></div>';
+  g.appendChild(h);
+}
 function showHints() {
   const H = S.L.hints || [], n = Math.min(save.hints[S.li] || 0, H.length), box = $('hintBox');
   box.style.display = n ? 'block' : 'none';
   box.innerHTML = '';
   for (let k = 0; k < n; k++) { const d = document.createElement('div'), b = document.createElement('b'); b.textContent = (k + 1) + '. '; d.appendChild(b); d.appendChild(document.createTextNode(H[k])); box.appendChild(d); }
   const left = H.length - n;
-  $('bHint').textContent = left ? 'Buy a hint (' + HINT_COST + ' coins)  -  you have ' + coins() : 'All hints bought for this level';
+  $('bHint').textContent = left ? 'Buy a hint (\u2605 ' + HINT_COST + ')  -  you have \u2605 ' + coins() : 'All hints bought for this level';
 }
 function buyHint() {
   if (!S.L || (S.mode !== 'play' && S.mode !== 'pause')) return;
   const H = S.L.hints || [], n = save.hints[S.li] || 0;
   if (n >= H.length) { sfx.deny(); toast('No more hints for this level'); return; }
-  if (coins() < HINT_COST) { sfx.deny(); toast('Not enough coins - stars and gems earn coins'); return; }
+  if (coins() < HINT_COST) { sfx.deny(); toast('Not enough stars to spend'); return; }
   save.hints[S.li] = n + 1; save.spent += HINT_COST; persist();
-  sfx.button(true); showHints(); toast('Hint ' + (n + 1) + ' of ' + H.length + ' bought');
+  sfx.button(true); showHints(); setText('hCoins', String(coins())); toast('Hint ' + (n + 1) + ' of ' + H.length + ' bought');
 }
 function gemCount() { return save.gems.reduce((a, b) => a + (b ? 1 : 0), 0); }
 function needStars(i) { let n = 0; for (const w of WORLDS) { n += w.n; if (i < n) return w.need; } return 0; }   // worlds unlock with stars
@@ -2190,7 +2232,7 @@ const sfx = {
 // =====================================================================
 //  SCREENS + HUD
 // =====================================================================
-const SCREENS = ['title', 'levels', 'controls', 'suits', 'pause', 'complete'];
+const SCREENS = ['title', 'levels', 'controls', 'suits', 'shop', 'pause', 'complete'];
 function showScreen(name) {
   for (const s of SCREENS) $(s).classList.toggle('on', s === name);
   $('hud').classList.toggle('on', !name);
@@ -2213,7 +2255,7 @@ const SLOWS = [[0.6, 'Light'], [0.45, 'Medium'], [0.3, 'Strong'], [1, 'Off']];  
 function buildGrid() {
   const g = $('grid'); g.innerHTML = '';
   const tot = totalStars();
-  $('starTotal').textContent = '\u2605 ' + tot + ' / ' + LEVELS.length * 3 + '      \u25C6 ' + gemCount() + ' / ' + LEVELS.length + ' gems      ' + coins() + ' coins';
+  $('starTotal').textContent = '\u2605 ' + tot + ' / ' + LEVELS.length * 3 + '      \u25C6 ' + gemCount() + ' / ' + LEVELS.length + ' gems      \u2605 ' + coins() + ' to spend';
   let i = 0;
   WORLDS.forEach((w, wi) => {
     const open = dbgOn || tot >= w.need, h = document.createElement('div'), row = document.createElement('div');
@@ -2274,6 +2316,7 @@ $('bPlay').onclick = () => { let i = 0; while (i < LEVELS.length - 1 && save.sta
 $('bLevels').onclick = () => toMenu('levels');
 $('bControls').onclick = () => showScreen('controls');
 $('bSuits').onclick = () => { buildSuits(); showScreen('suits'); };
+$('bShop').onclick = () => { buildShop(); showScreen('shop'); };
 $('bSlow').onclick = () => { opts.slow = SLOWS[(SLOWS.findIndex(q => q[0] === opts.slow) + 1) % SLOWS.length][0]; persist(); optLabels(); };
 $('bSky').onclick = cycleSky;
 $('bGhost').onclick = () => { opts.ghost = !opts.ghost; persist(); optLabels(); };
@@ -2301,14 +2344,14 @@ function updateHud() {
   const t = S.mode === 'win' || S.mode === 'done' ? S.finalTime : S.clock;
   setText('hTime', t.toFixed(1));
   setText('hSplit', save.best[S.li] != null ? '(best ' + save.best[S.li].toFixed(1) + ')' : '');
-  setText('hFlips', L.limit ? S.flips + ' / ' + L.limit : S.flips + '  (par ' + L.par.flips + ')');
+  setText('hFlips', L.limit ? S.flips + ' / ' + flipLimit() : S.flips + '  (par ' + L.par.flips + ')');
   setText('hDeaths', String(S.deaths));
   setText('hDist', S.beaconDist.toFixed(0));
   setText('hCoins', String(coins()));
   setText('hGem', S.gem ? (S.gem.got ? '\u25C6 found' : '\u25C7 hidden') : '-');
   const fo = S.focus && !P.grounded && S.mode === 'play';
   if (hudCache.focus !== fo) { hudCache.focus = fo; $('focus').classList.toggle('on', fo); }
-  const fall = Math.max(0, P.v[g.a] * g.s) / CFG.V_DEATH, fill = $('speedFill');
+  const fall = Math.max(0, P.v[g.a] * g.s) / vDeath(), fill = $('speedFill');
   fill.style.width = Math.min(100, fall * 100).toFixed(0) + '%';
   fill.style.background = fall >= 1 ? '#ff5468' : fall >= 0.7 ? '#ffd24a' : '#5dfc9a';
   const rush = (fall < 0.4 ? 0 : Math.min(1, (fall - 0.4) / 0.6)).toFixed(2);      // speed lines when falling fast
